@@ -17,36 +17,29 @@
 
     - name: Create cloudflare credentials file
       template:
-        src: files/cloudflare.ini.j2
+        src: cloudflare.ini.j2
         dest: /etc/cloudflare.ini
         mode: '0600'
         force: no
 
+    # Main Domain
     - name: "Check if the cert exists for {{ domain }}"
       stat:
         path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
       register: stat_domain_result
 
     - name: Run certbot command for item
-      command: certbot certonly -m "{{ cloudflare_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}"
+      command: certbot certonly -m "{{ cf_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}"
       when: stat_domain_result.stat.exists == False
 
+    # Sites
     - name: "Check if the cert exists for sites"
       stat:
         path: "/etc/letsencrypt/live/{{ item }}/fullchain.pem"
       register: stat_result
       with_items: "{{ sites }}"
 
-    - name: Run certbot command for item
-      command: certbot certonly -m "{{ cloudflare_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ item.item }}" -d "*.{{ item.item }}"
+    - name: "Run certbot command for sites"
+      command: certbot certonly -m "{{ cf_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ item.item }}" -d "*.{{ item.item }}"
       when: item.stat.exists == False
       loop: "{{ stat_result.results }}"
-
-    - name: "Check if the cert exists for {{ proxy_url }}"
-      stat:
-        path: "/etc/letsencrypt/live/{{ proxy_url }}/fullchain.pem"
-      register: stat_proxy_result
-
-    - name: Run certbot command for item
-      command: certbot certonly -m "{{ cloudflare_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ proxy_url }}"
-      when: stat_proxy_result.stat.exists == False

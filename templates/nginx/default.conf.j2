@@ -1,4 +1,10 @@
 server {
+    listen 80;
+    server_name {{ ip_addr }};
+    return 301 https://{{ domain }}$request_uri;
+}
+
+server {
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name {{ domain }};

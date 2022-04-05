@@ -2,6 +2,7 @@
 - hosts: all
   become: true
   vars:
+    ip_addr:      "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
     domain:       "{{ lookup('env','DOMAIN') | default('ananke.radiochat.com.br') }}"
     sites:
       - { idx: '02', url: 'somdomato.com' }
@@ -74,7 +75,7 @@
 
     - name: "Create /etc/nginx/sites-available/01-{{ domain }} file"
       template:
-        src: "files/nginx/default.conf.j2"
+        src: nginx/default.conf.j2
         dest: "/etc/nginx/sites-available/01-{{ domain }}"
         force: yes
 
@@ -87,9 +88,9 @@
 
     - name: Configure /etc/nginx/sites-available/ files
       template:
-        src: "files/nginx/sites.conf.j2"
+        src: nginx/sites.conf.j2
         dest: "/etc/nginx/sites-available/{{ item.idx }}-{{ item.url }}"
-        force: no
+        force: yes
       with_items: "{{ sites }}"
 
     - name: Enables sites
@@ -97,7 +98,7 @@
         src: "/etc/nginx/sites-available/{{ item.idx }}-{{ item.url }}"
         dest: "/etc/nginx/sites-enabled/{{ item.idx }}-{{ item.url }}"
         state: link
-      with_indexed_items: "{{ sites }}"
+      with_items: "{{ sites }}"
 
     - name: Remove /etc/nginx/sites-enabled/default link
       file:
@@ -109,6 +110,39 @@
         path: /etc/nginx/sites-available/default
         state: absent
 
+    # Composer
+    - name: Check if Composer is installed
+      stat:
+        path: /usr/local/bin/composer
+      register: composer_bin
+
+    - name: Get Composer installer signature
+      uri:
+        url: https://composer.github.io/installer.sig
+        return_content: true
+      register: composer_installer_signature
+      when: not composer_bin.stat.exists
+
+    - name: Download Composer installer
+      get_url:
+        url: https://getcomposer.org/installer
+        dest: /tmp/composer-installer.php
+        mode: 0755
+        checksum: "sha384:{{ composer_installer_signature.content }}"
+      when: not composer_bin.stat.exists
+
+    - name: Run Composer installer
+      command: php composer-installer.php
+      args:
+        chdir: /tmp
+      when: not composer_bin.stat.exists
+
+    - name: Move Composer into globally-accessible location
+      command: mv /tmp/composer.phar /usr/local/bin/composer
+      args:
+        creates: /usr/local/bin/composer
+      when: not composer_bin.stat.exists
+
     - name: Restart nginx
       service:
         name: nginx
@@ -117,7 +151,7 @@
 
     - name: Restart php
       service:
-        name: "php{{ php_version }}"
+        name: "php{{ php_version }}-fpm"
         state: restarted
         enabled: yes
 

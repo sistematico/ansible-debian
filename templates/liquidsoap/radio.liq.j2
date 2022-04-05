@@ -1,0 +1,33 @@
+#!/usr/bin/liquidsoap
+
+set("log.file.path", "/dev/null")
+set("log.stdout", false)
+set("server.telnet", false)
+set("harbor.bind_addrs", ["0.0.0.0"])
+
+# tweak these values if you have lag, skipping, buffer underrun etc
+# set("frame.duration",0.04)
+# set("root.max_latency",60.)
+
+#def pedidos() = 
+#    result = list.hd(get_process_lines(default="", "sudo -u nginx /usr/bin/php /var/www/site.com/artisan getsong"))
+#    request.create(result)
+#end
+#laravel = request.dynamic(pedidos)
+
+live = input.harbor("aovivo", port = 8080, password = "hackme")
+lista = playlist("/opt/liquidsoap/music")
+#radio = fallback(track_sensitive=false, [live, laravel])
+radio = fallback(track_sensitive=false, [live, lista])
+
+output.icecast(%mp3
+        (bitrate=128, samplerate=44100, id3v2=true),
+        host = "localhost",
+        port = 8000,
+        password = "hackme",
+        mount = "/principal",
+        name = "Radio Som do Mato",
+        description = "A mais sertaneja!",
+        genre = "Sertanejo",
+        icy_metadata="true",
+        mksafe(radio))

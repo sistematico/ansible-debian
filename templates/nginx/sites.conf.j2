@@ -1,7 +1,7 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name {{ item }};
+    server_name {{ item.url }};
     return 301 https://$host$request_uri;
 }
 
@@ -9,12 +9,12 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
 
-    ssl_certificate         /etc/letsencrypt/live/{{ item }}/fullchain.pem;
-    ssl_certificate_key     /etc/letsencrypt/live/{{ item }}/privkey.pem;
+    ssl_certificate         /etc/letsencrypt/live/{{ item.url }}/fullchain.pem;
+    ssl_certificate_key     /etc/letsencrypt/live/{{ item.url }}/privkey.pem;
 
-    root /var/www/{{ item }};
+    root /var/www/{{ item.url }};
     index index.php index.html;
-    server_name {{ item }};
+    server_name {{ item.url }};
 
     location / {
         try_files $uri $uri/ =404;

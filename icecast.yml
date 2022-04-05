@@ -1,0 +1,156 @@
+---
+- hosts: all
+  become: true
+  vars:
+    domain: "{{ lookup('env','DOMAIN') | default('ananke.radiochat.com.br') }}"
+  
+  tasks:
+    - name: Install icecast2 on Debian family
+      apt:
+        state: latest
+        pkg: 
+          - icecast2
+          - liquidsoap      
+
+    - name: Ensure group icecast exists
+      ansible.builtin.group:
+        name: icecast2
+        state: present
+
+    - name: Create a 2048-bit SSH key for user icecast in ~/icecast/.ssh/id_rsa
+      ansible.builtin.user:
+        name: icecast2
+        group: icecast2
+        shell: /bin/bash
+        home: /home/icecast
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        state: present
+
+    - name: Copy config file for icecast2 systemd service
+      template:
+        src: icecast/icecast2.service.j2
+        dest: /etc/systemd/system/icecast2.service
+
+    - name: Disable icecast2 stock systemd service unit
+      systemd:
+        name: icecast2
+        state: stopped
+        enabled: no
+        daemon_reload: yes
+
+    - name: Copy icecast2 config file
+      template:
+        src: icecast/icecast.xml.j2
+        dest: /etc/icecast2/icecast.xml
+
+    - name: Change file ownership, group and permissions
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: icecast2
+        group: icecast2
+        recurse: yes
+      with_items:
+        - /usr/share/icecast2
+        - /var/log/icecast2
+        - /home/icecast2
+        - /etc/icecast2
+
+    # LiquidSoap
+    - name: Ensure group liquidsoap exists
+      ansible.builtin.group:
+        name: liquidsoap
+        system: no
+        state: present
+
+    - name: Create a 2048-bit SSH key for user liquidsoap in ~/liquidsoap/.ssh/id_rsa
+      ansible.builtin.user:
+        name: liquidsoap
+        shell: /bin/bash
+        home: /home/liquidsoap
+        group: liquidsoap
+        system: no
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        state: present
+
+    - name: Creates directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: liquidsoap
+        group: liquidsoap
+        recurse: yes
+      with_items: 
+        - /etc/liquidsoap
+        - /opt/liquidsoap/music
+        - /opt/liquidsoap/scripts
+
+    # - name: Create empty log file
+    #   file:
+    #     path: /var/log/liquidsoap.log
+    #     state: touch
+    #     owner: liquidsoap
+    #     group: liquidsoap
+    #     mode: 0644
+
+    - name: Setup liquidsoap systemd service
+      template:
+        src: liquidsoap/liquidsoap.service.j2
+        dest: /etc/systemd/system/liquidsoap.service
+        force: no
+
+    - name: Setup liquidsoap
+      template:
+        src: liquidsoap/radio.liq.j2
+        dest: /etc/liquidsoap/radio.liq
+
+    - name: Setup liquidsoap sudoers file
+      template:
+        src: liquidsoap/liquidsoap.sudoers.conf.j2
+        dest: /etc/sudoers.d/liquidsoap.conf
+        force: yes
+
+    - name: "Create /etc/nginx/sites-available/90-stream.{{ domain }} file"
+      template:
+        src: icecast/nginx.conf.j2
+        dest: "/etc/nginx/sites-available/90-stream.{{ domain }}"
+        force: yes
+
+    - name: "Enable /etc/nginx/sites-enabled/90-stream.{{ domain }}"
+      file:
+        src: "/etc/nginx/sites-available/90-stream.{{ domain }}"
+        dest: "/etc/nginx/sites-enabled/90-stream.{{ domain }}"
+        state: link
+        force: yes
+
+    - name: Download yt-dlp
+      get_url:
+        url: https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp
+        dest: /usr/local/bin/yt-dlp
+        mode: '0755'
+
+    - name: Download mp3 sample
+      script: scripts/download.sh
+      args:
+        executable: bash
+
+    - name: Run and enable icecast2 systemd unit
+      systemd:
+        name: icecast2
+        state: restarted
+        enabled: true
+
+    - name: Enable and restart liquidsoap service
+      systemd:
+        name: liquidsoap
+        state: restarted
+        enabled: yes
+
+    - name: Restart nginx service
+      systemd:
+        name: nginx
+        state: restarted

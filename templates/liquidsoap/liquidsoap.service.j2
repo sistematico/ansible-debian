@@ -1,0 +1,18 @@
+[Unit]
+Description=Liquidsoap daemon
+After=network.target icecast2.service
+Documentation=http://liquidsoap.fm
+
+[Service]
+Type=forking
+User=liquidsoap
+PIDFile=/run/liquidsoap.pid
+ExecStart=/usr/bin/liquidsoap /etc/liquidsoap/radio.liq
+Restart=on-failure
+RestartSec=10s
+#KillMode=process
+KillMode=none
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
