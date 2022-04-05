@@ -1,0 +1,104 @@
+---
+- hosts: all
+  become: true
+  become_method: su
+  vars:
+    root_passwd: "{{ lookup('env','PASSWD') | default('') }}" 
+    sudo_user:   "{{ lookup('env','USER') | default('') }}"
+    hostname:    "{{ lookup('env','HOSTNAME') | default('') }}"
+    timezone:    "{{ lookup('env','TIMEZONE') | default('America/Sao_Paulo') }}"
+    packages:
+      - sudo
+      - curl
+      - nano
+      - git
+      - ntp
+
+  tasks:
+    - name: Change password for root user
+      user:
+        name: root
+        state: present
+        password: "{{ root_passwd | password_hash('sha512') }}"
+      when: 
+        - root_passwd is defined
+        - root_passwd != ""
+
+    - name: Set a hostname
+      hostname:
+        name: "{{ hostname }}"
+        use: systemd
+      when: 
+        - hostname is defined
+        - hostname != ""
+
+    - name: Update apt repo and cache
+      apt: 
+        cache_valid_time: 3600
+        update_cache: yes
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+
+    - name: Check if a reboot is needed
+      register: reboot_required_file
+      stat:
+        path: /var/run/reboot-required
+        get_md5: no
+
+    - name: Reboot the box if kernel updated
+      reboot:
+        msg: "Reboot initiated by Ansible for kernel updates"
+        connect_timeout: 5
+        reboot_timeout: 300
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        test_command: uptime
+      when: reboot_required_file.stat.exists
+
+    - name: Install required system packages
+      apt:
+        pkg: "{{ item }}"
+        state: latest
+      with_items: "{{ packages }}"
+      when: 
+        - packages is defined
+        - packages != ""
+
+    - name: "Set timezone to {{ timezone }}"
+      timezone:
+        name: "{{ timezone }}"
+      when: timezone is defined
+
+    - name: Make sure ntp is started, and is enabled on restart.
+      service:
+        name: ntp
+        state: started
+        enabled: yes
+      when: timezone is defined
+
+    - name: Setup passwordless sudo
+      lineinfile:
+        path: /etc/sudoers
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+        state: present
+      when: sudo_user != ""
+
+    - name: Create a new regular user with sudo privileges
+      user:
+        name: "{{ sudo_user }}"
+        state: present
+        groups: sudo
+        append: true
+        create_home: true
+      when: sudo_user != ""
+
+    - name: Set authorized key for remote user
+      ansible.posix.authorized_key:
+        user: "{{ sudo_user }}"
+        state: present
+        key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+      when: sudo_user != ""
