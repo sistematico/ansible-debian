@@ -15,6 +15,28 @@
       - ntp
 
   tasks:
+    - name: Enable root on /root/.ssh/authorized_keys file
+      script: ./scripts/root.sh
+      args:
+        executable: bash
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Enable root login
+      lineinfile:
+        dest: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin yes'
+        state: present
+        backrefs: yes
+
+    - name: Enable password auth
+      lineinfile:
+        dest: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication yes'
+        state: present
+        backrefs: yes
+
     - name: Change password for root user
       user:
         name: root
@@ -102,3 +124,20 @@
         state: present
         key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
       when: sudo_user != ""
+
+    - name: Disable Ubuntu Snap
+      script: ./scripts/snap.sh
+      args:
+        executable: bash
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Delete /run/nologin if it exists
+      file:
+        path: /run/nologin
+        state: absent
+
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
+        enabled: yes
