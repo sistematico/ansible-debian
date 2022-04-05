@@ -1,4 +1,4 @@
-# Common server setups on Debian & Ubuntu
+# Configurações automáticas em VPSs usando o Debian & Ubuntu
 
 ### 1. Obtendo os playbooks
 
