@@ -2,7 +2,9 @@
 - hosts: all
   become: true
   vars:
-    domain: "{{ lookup('env','DOMAIN') | default('ananke.radiochat.com.br') }}"
+    domain_prefix: "radio"
+    domain:        "somdomato.com"
+    #domain: "{{ lookup('env','DOMAIN') }}"
   
   tasks:
     - name: Install required packages
@@ -11,7 +13,9 @@
         pkg: 
           - icecast2
           - liquidsoap   
-          - ffmpeg   
+          - ffmpeg
+          - certbot
+          - python3-certbot-dns-cloudflare
 
     - name: Ensure group icecast exists
       ansible.builtin.group:
@@ -115,16 +119,16 @@
         dest: /etc/sudoers.d/liquidsoap.conf
         force: yes
 
-    - name: "Create /etc/nginx/sites-available/90-stream.{{ domain }} file"
+    - name: "Create /etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }} file"
       template:
         src: icecast/nginx.conf.j2
-        dest: "/etc/nginx/sites-available/90-stream.{{ domain }}"
+        dest: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
         force: yes
 
-    - name: "Enable /etc/nginx/sites-enabled/90-stream.{{ domain }}"
+    - name: "Enable /etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
       file:
-        src: "/etc/nginx/sites-available/90-stream.{{ domain }}"
-        dest: "/etc/nginx/sites-enabled/90-stream.{{ domain }}"
+        src: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
+        dest: "/etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
         state: link
         force: yes
 
@@ -139,6 +143,27 @@
       script: scripts/download.sh
       args:
         executable: bash
+
+    # Cert
+    - name: Check if the cert exists
+      stat:
+        path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+      register: cert_file_result
+
+    - name: Run certbot command for stream page
+      command: certbot certonly -m "{{ cloudflare_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}"
+      when: not cert_file_result.stat.exists
+
+    - name: Create icecast key
+      shell: "cat /etc/letsencrypt/live/{{ domain }}/fullchain.pem /etc/letsencrypt/live/{{ domain }}/privkey.pem > /usr/share/icecast2/icecast.pem"
+      when: cert_file_result.stat.exists
+
+    - name: Change file ownership, group and permissions of /usr/share/icecast/icecast.pem
+      ansible.builtin.file:
+        path: /usr/share/icecast2/icecast.pem
+        owner: icecast2
+        group: icecast2
+        mode: '0660'
 
     - name: Run and enable icecast2 systemd unit
       systemd:

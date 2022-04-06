@@ -6,12 +6,10 @@ Documentation=http://liquidsoap.fm
 [Service]
 Type=forking
 User=liquidsoap
-PIDFile=/opt/liquidsoap/liquidsoap.pid
 ExecStart=/usr/bin/liquidsoap /etc/liquidsoap/radio.liq
 Restart=on-failure
-#RestartSec=5s
-KillMode=process
-#KillMode=none
+RestartSec=5s
+KillMode=control-group # control-group, mixed, process, none.
 RemainAfterExit=yes
 
 [Install]
