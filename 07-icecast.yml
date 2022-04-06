@@ -7,6 +7,20 @@
     #domain: "{{ lookup('env','DOMAIN') }}"
   
   tasks:
+    - name: "Firewall rule - Allow connections on port: 8000 and 8080"
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_ports:
+          - "8000"
+          - "8080"
+        jump: ACCEPT
+
+    - name: Save current state of the firewall in system file
+      community.general.iptables_state:
+        state: saved
+        path: /etc/iptables/rules.v4
+
     - name: Install required packages
       apt:
         state: latest
@@ -44,6 +58,11 @@
         state: stopped
         enabled: no
         daemon_reload: yes
+
+    - name: Stop liquidsoap service
+      systemd:
+        name: liquidsoap
+        state: stopped
 
     - name: Copy icecast2 config file
       template:
@@ -168,14 +187,14 @@
     - name: Run and enable icecast2 systemd unit
       systemd:
         name: icecast2
-        state: restarted
+        state: started
         enabled: true
         daemon_reload: true
 
     - name: Enable and restart liquidsoap service
       systemd:
         name: liquidsoap
-        state: restarted
+        state: started
         enabled: yes
 
     - name: Restart nginx service

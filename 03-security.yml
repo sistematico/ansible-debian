@@ -57,6 +57,11 @@
       - netfilter-persistent
       when: ansible_os_family == "Debian" or ansible_os_family == "Ubuntu"
 
+    - name: Save current state of the firewall in system file
+      community.general.iptables_state:
+        state: saved
+        path: /etc/iptables/rules.v4
+
     # fail2ban
     - name: Install the fail2ban package
       package:

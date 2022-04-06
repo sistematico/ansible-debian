@@ -4,12 +4,16 @@ After=network.target icecast2.service
 Documentation=http://liquidsoap.fm
 
 [Service]
-Type=forking
+#Type=forking
+Type=simple
 User=liquidsoap
 ExecStart=/usr/bin/liquidsoap /etc/liquidsoap/radio.liq
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStop=/bin/kill -HUP $MAINPID
+ExecRestart=/bin/kill -HUP $MAINPID
 Restart=on-failure
-RestartSec=5s
-KillMode=control-group # control-group, mixed, process, none.
+RestartSec=10s
+#KillMode=control-group # control-group, mixed, process, none.
 RemainAfterExit=yes
 
 [Install]

@@ -1,0 +1,70 @@
+---
+- hosts: all
+  become: true
+  vars:
+    domain_prefix: "chat"
+    domain:        "somdomato.com"
+  
+  tasks:
+    - name: Create a 2048-bit SSH key for user kiwiirc in ~kiwiirc/.ssh/id_rsa
+      ansible.builtin.user:
+        name: kiwiirc
+        shell: /bin/bash
+        home: /home/kiwiirc
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+
+    - name: "Install kiwiirc"
+      apt:
+        deb: "https://kiwiirc.com/downloads/kiwiirc_20.05.24.1-1_amd64.deb"
+
+    - name: "Configure /etc/kiwiirc/config.conf file"
+      template:
+        src: "kiwiirc/config.conf.j2"
+        dest: "/etc/kiwiirc/config.conf"
+
+    - name: "Configure /etc/kiwiirc/client.json file"
+      template:
+        src: "kiwiirc/client.json.j2"
+        dest: "/etc/kiwiirc/client.json"
+
+    - name: "Configure /etc/nginx/sites-available/80-{{ domain_prefix }}.{{ domain }} file"
+      template:
+        src: kiwiirc/kiwiirc-nginx.conf.j2
+        dest: "/etc/nginx/sites-available/80-{{ domain_prefix }}.{{ domain }}"
+        force: yes
+
+    - name: Enables sites
+      file:
+        src: "/etc/nginx/sites-available/80-{{ domain_prefix }}.{{ domain }}"
+        dest: "/etc/nginx/sites-enabled/80-{{ domain_prefix }}.{{ domain }}"
+        state: link
+
+    - name: Create custom theme directory
+      file:
+        path: /usr/share/kiwiirc/static/sdm
+        state: directory
+        owner: kiwiirc
+        group: kiwiirc
+        mode: '0755'
+
+    - name: Configure custom theme
+      template:
+        src: kiwiirc/theme.css.j2
+        dest: /usr/share/kiwiirc/static/sdm/theme.css
+        owner: kiwiirc
+        group: kiwiirc
+        mode: '0644'
+        force: yes        
+
+    - name: Enable kiwiirc service
+      ansible.builtin.service:
+        name: kiwiirc
+        state: restarted
+        enabled: yes
+
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted
