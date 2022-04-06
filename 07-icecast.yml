@@ -5,12 +5,13 @@
     domain: "{{ lookup('env','DOMAIN') | default('ananke.radiochat.com.br') }}"
   
   tasks:
-    - name: Install icecast2 on Debian family
+    - name: Install required packages
       apt:
         state: latest
         pkg: 
           - icecast2
-          - liquidsoap      
+          - liquidsoap   
+          - ffmpeg   
 
     - name: Ensure group icecast exists
       ansible.builtin.group:
@@ -101,7 +102,7 @@
       template:
         src: liquidsoap/liquidsoap.service.j2
         dest: /etc/systemd/system/liquidsoap.service
-        force: no
+        force: yes
 
     - name: Setup liquidsoap
       template:
@@ -127,6 +128,7 @@
         state: link
         force: yes
 
+    # yt-dlp
     - name: Download yt-dlp
       get_url:
         url: https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp
@@ -143,6 +145,7 @@
         name: icecast2
         state: restarted
         enabled: true
+        daemon_reload: true
 
     - name: Enable and restart liquidsoap service
       systemd:

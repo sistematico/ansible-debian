@@ -4,6 +4,8 @@ set("log.file.path", "/dev/null")
 set("log.stdout", false)
 set("server.telnet", false)
 set("harbor.bind_addrs", ["0.0.0.0"])
+set("init.daemon.pidfile",true)
+set("init.daemon.pidfile.path","/opt/liquidsoap/liquidsoap.pid")
 
 # tweak these values if you have lag, skipping, buffer underrun etc
 # set("frame.duration",0.04)

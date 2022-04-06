@@ -12,3 +12,5 @@ yt-dlp -i -c \
     --add-metadata \
     -o "%(artist)s - %(title)s.%(ext)s" \
     "$url"
+
+chown -R liquidsoap:liquidsoap /opt/liquidsoap 2> /dev/null
