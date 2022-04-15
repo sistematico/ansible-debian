@@ -87,6 +87,16 @@
         - /run/php
         - /var/lib/nginx
 
+    - name: "Copy nginx snippets"
+      template:
+        src: "nginx/snippets/{{ item }}.j2"
+        dest: "/etc/nginx/snippets/{{ item }}"
+        force: yes
+      with_items:
+        - "inertia.conf"
+        - "laravel.conf"
+        - "default.conf"
+
     - name: "Create /etc/nginx/sites-available/01-{{ domain }} file"
       template:
         src: nginx/default.conf.j2
