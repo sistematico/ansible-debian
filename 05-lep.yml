@@ -1,13 +1,15 @@
 ---
 - hosts: all
   become: true
+
   vars:
-    ip_addr:      "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
-    domain:       "{{ lookup('env','DOMAIN') | default('ananke.radiochat.com.br') }}"
+    domain:       "{{ lookup('env','DOMAIN') | default('nix.radiochat.com.br') }}"
     sites:
       - { idx: '02', url: 'somdomato.com' }
       - { idx: '03', url: 'packetloss.com.br' }
       - { idx: '04', url: 'radiochat.com.br' }
+    ip_addr:      "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
+
     nginx_user:   "nginx"
     nginx_passwd: "{{ lookup('env','PASSWD') | default('') }}" 
     php_version:  "8.0"

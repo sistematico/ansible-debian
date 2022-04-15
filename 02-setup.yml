@@ -2,11 +2,10 @@
 - hosts: all
   gather_facts: yes
   become: true
-  #become_method: "{{ 'sudo' if ansible_distribution == 'Ubuntu' else 'su' }}"
+
   vars:
-    root_passwd: "{{ lookup('env','PASSWD') | default('') }}" 
     sudo_user:   "{{ lookup('env','USER') | default('') }}"
-    hostname:    "{{ lookup('env','HOSTNAME') | default('') }}"
+    hostname:    "{{ lookup('env','HOSTNAME') | default('nix') }}"
     timezone:    "{{ lookup('env','TIMEZONE') | default('America/Sao_Paulo') }}"
     packages:
       - sudo
@@ -29,6 +28,7 @@
         line: 'PermitRootLogin yes'
         state: present
         backrefs: yes
+      when: ansible_distribution == 'Ubuntu'
 
     - name: Enable password auth
       lineinfile:
@@ -37,6 +37,7 @@
         line: 'PasswordAuthentication yes'
         state: present
         backrefs: yes
+      when: ansible_distribution == 'Ubuntu'
 
     - name: Change password for root user
       user:
@@ -92,14 +93,18 @@
     - name: "Set timezone to {{ timezone }}"
       timezone:
         name: "{{ timezone }}"
-      when: timezone is defined
+      when: 
+        - timezone is defined
+        - timezone != ""
 
     - name: Make sure ntp is started, and is enabled on restart.
       service:
         name: ntp
         state: started
         enabled: yes
-      when: timezone is defined
+      when: 
+        - timezone is defined
+        - timezone != ""
 
     - name: Setup passwordless sudo
       lineinfile:
@@ -108,7 +113,9 @@
         line: '%sudo ALL=(ALL) NOPASSWD: ALL'
         validate: '/usr/sbin/visudo -cf %s'
         state: present
-      when: sudo_user != ""
+      when: 
+        - sudo_user is defined
+        - sudo_user != ""
 
     - name: Create a new regular user with sudo privileges
       user:
@@ -117,14 +124,18 @@
         groups: sudo
         append: true
         create_home: true
-      when: sudo_user != ""
+      when: 
+        - sudo_user is defined
+        - sudo_user != ""
 
     - name: Set authorized key for remote user
       ansible.posix.authorized_key:
         user: "{{ sudo_user }}"
         state: present
         key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
-      when: sudo_user != ""
+      when: 
+        - sudo_user is defined
+        - sudo_user != ""
 
     - name: Disable Ubuntu Snap
       script: ./scripts/snap.sh
@@ -136,6 +147,7 @@
       file:
         path: /run/nologin
         state: absent
+      when: ansible_distribution == 'Ubuntu'
 
     - name: Restart sshd
       service:

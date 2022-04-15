@@ -1,12 +1,3 @@
-#!/usr/bin/liquidsoap
-
-%include "config.liq"
-#%include "requests.liq"
-
-live = input.harbor("aovivo", port = 8080, password = "{{ radio_password }}")
-lista = playlist("/opt/liquidsoap/music")
-radio = fallback(track_sensitive=false, [live, lista])
-
 output.icecast(%mp3
         (bitrate={{ radio_bitrate }}, samplerate=44100, id3v2=true),
         host = "localhost",

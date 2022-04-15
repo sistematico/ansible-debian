@@ -3,7 +3,7 @@
     <admin>sistematico@gmail.com</admin>
     <limits>
         <clients>1000</clients>
-        <sources>2</sources>
+        <sources>3</sources>
         <queue-size>524288</queue-size>
         <client-timeout>30</client-timeout>
         <header-timeout>15</header-timeout>
@@ -23,13 +23,13 @@
 
     <listen-socket>
         <port>8000</port>
-        <shoutcast-mount>/principal</shoutcast-mount>
+        <shoutcast-mount>/{{ radio_mountpoint }}</shoutcast-mount>
         <charset>UTF-8</charset>
-        <stream-name>Radio Som do Mato</stream-name>
-        <stream-description>A mais sertaneja!</stream-description>
-        <stream-url>https://somdomato.com</stream-url>
-        <genre>Sertanejo</genre>
-        <bitrate>128</bitrate>
+        <stream-name>{{ radio_name }}</stream-name>
+        <stream-description>{{ radio_description }}</stream-description>
+        <stream-url>{{ radio_url }}</stream-url>
+        <genre>{{ radio_genre }}</genre>
+        <bitrate>{{ radio_bitrate }}</bitrate>
     </listen-socket>
 
     <listen-socket>

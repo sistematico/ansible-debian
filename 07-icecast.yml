@@ -1,10 +1,30 @@
 ---
 - hosts: all
   become: true
+
   vars:
-    domain_prefix: "radio"
-    domain:        "somdomato.com"
-    #domain: "{{ lookup('env','DOMAIN') }}"
+    domain_prefix:     "radio"
+    domain:            "somdomato.com"
+    radio_name:        "Radio Som do Mato"
+    radio_description: "A mais sertaneja!"
+    radio_url:         "https://somdomato.com"
+    radio_genre:       "Sertanejo"
+    radio_mountpoint:  "geral"
+    radio_port:        8000
+    radio_password:    "hackme"
+    radio_bitrate:     128
+    icecast_passwd:    "{{ lookup('env','PASSWD') | default('hackme') }}"
+    liquidsoap_passwd: "{{ lookup('env','PASSWD') | default('hackme') }}"
+    cf_email:          "{{ lookup('env','CF_EMAIL') }}"
+    cf_token:          "{{ lookup('env','CF_TOKEN') }}"
+    packages:
+      - icecast2
+      - liquidsoap   
+      - ffmpeg
+      - certbot
+      - python3-certbot-dns-cloudflare
+      - nginx
+      - rsync
   
   tasks:
     - name: "Firewall rule - Allow connections on port: 8000 and 8080"
@@ -15,21 +35,22 @@
           - "8000"
           - "8080"
         jump: ACCEPT
+      when: ansible_distribution == 'Ubuntu'
 
     - name: Save current state of the firewall in system file
       community.general.iptables_state:
         state: saved
         path: /etc/iptables/rules.v4
+      when: ansible_distribution == 'Ubuntu'
 
-    - name: Install required packages
+    - name: Install required system packages
       apt:
+        pkg: "{{ item }}"
         state: latest
-        pkg: 
-          - icecast2
-          - liquidsoap   
-          - ffmpeg
-          - certbot
-          - python3-certbot-dns-cloudflare
+      with_items: "{{ packages }}"
+      when: 
+        - packages is defined
+        - packages != ""
 
     - name: Ensure group icecast exists
       ansible.builtin.group:
@@ -42,6 +63,7 @@
         group: icecast2
         shell: /bin/bash
         home: /home/icecast
+        password: "{{ icecast_passwd | password_hash('sha512') }}"
         generate_ssh_key: yes
         ssh_key_bits: 2048
         ssh_key_file: .ssh/id_rsa
@@ -58,11 +80,6 @@
         state: stopped
         enabled: no
         daemon_reload: yes
-
-    - name: Stop liquidsoap service
-      systemd:
-        name: liquidsoap
-        state: stopped
 
     - name: Copy icecast2 config file
       template:
@@ -94,6 +111,7 @@
         shell: /bin/bash
         home: /home/liquidsoap
         group: liquidsoap
+        password: "{{ liquidsoap_passwd | password_hash('sha512') }}"
         system: no
         generate_ssh_key: yes
         ssh_key_bits: 2048
@@ -129,8 +147,17 @@
 
     - name: Setup liquidsoap
       template:
-        src: liquidsoap/radio.liq.j2
-        dest: /etc/liquidsoap/radio.liq
+        src: "{{ item.orig }}"
+        dest: "{{ item.dest }}"
+        owner: liquidsoap
+        group: liquidsoap
+        mode: '0644'
+        force: yes
+      with_items:
+        - { orig: "liquidsoap/radio.liq.j2", dest: "/etc/liquidsoap/radio.liq" }
+        - { orig: "liquidsoap/requests.liq.j2", dest: "/etc/liquidsoap/requests.liq" }
+        - { orig: "liquidsoap/config.liq.j2", dest: "/etc/liquidsoap/config.liq" }
+        - { orig: "liquidsoap/outputs.liq.j2", dest: "/etc/liquidsoap/outputs.liq" }
 
     - name: Setup liquidsoap sudoers file
       template:
@@ -151,6 +178,16 @@
         state: link
         force: yes
 
+    - name: "Disable nginx default"
+      file:
+        src: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
+        dest: "/etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
+
+    - name: "Disable nginx default"
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
     # yt-dlp
     - name: Download yt-dlp
       get_url:
@@ -162,16 +199,30 @@
       script: scripts/download.sh
       args:
         executable: bash
+      when: 
+        - make_downloads is defined
+        - make_downloads == 'yes'
 
     # Cert
+    - name: "Create /etc/cloudflare.ini"
+      template:
+        src: cloudflare/cloudflare.ini.j2
+        dest: "/etc/cloudflare.ini"
+        force: no
+
     - name: Check if the cert exists
       stat:
         path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
       register: cert_file_result
 
     - name: Run certbot command for stream page
-      command: certbot certonly -m "{{ cloudflare_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}"
-      when: not cert_file_result.stat.exists
+      command: certbot certonly --non-interactive --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}" -d "*.{{ domain }}"
+      when: 
+        - not cert_file_result.stat.exists
+        - cf_email is defined
+        - cf_email != ""
+        - cf_token is defined
+        - cf_token != ""
 
     - name: Create icecast key
       shell: "cat /etc/letsencrypt/live/{{ domain }}/fullchain.pem /etc/letsencrypt/live/{{ domain }}/privkey.pem > /usr/share/icecast2/icecast.pem"
@@ -183,6 +234,7 @@
         owner: icecast2
         group: icecast2
         mode: '0660'
+      when: cert_file_result.stat.exists
 
     - name: Run and enable icecast2 systemd unit
       systemd:

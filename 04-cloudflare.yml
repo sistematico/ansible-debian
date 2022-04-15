@@ -1,45 +1,34 @@
 ---
 - hosts: all
   become: true
+
   vars:
-    domain:       "{{ lookup('env','DOMAIN') | default('ananke.radiochat.com.br') }}"
-    sites:        ['somdomato.com', 'packetloss.com.br', 'radiochat.com.br']
-    cf_email:     "{{ lookup('env','CF_EMAIL') }}"
-    cf_token:     "{{ lookup('env','CF_TOKEN') }}"
-
+    domain:    "{{ lookup('env','SITE') }}"
+    cf_email:  "{{ lookup('env','CF_EMAIL') }}"
+    cf_token:  "{{ lookup('env','CF_TOKEN') }}"
+    packages:
+      - certbot
+      - python3-certbot-dns-cloudflare
+  
   tasks:
-    - name: Install certbot and python3-certbot-dns-cloudflare
-      apt: 
+    - name: Install required system packages
+      apt:
+        pkg: "{{ item }}"
         state: latest
-        pkg:
-          - certbot
-          - python3-certbot-dns-cloudflare
+      with_items: "{{ packages }}"
 
-    - name: Create cloudflare credentials file
+    - name: "Create /etc/cloudflare.ini"
       template:
-        src: cloudflare.ini.j2
-        dest: /etc/cloudflare.ini
-        mode: '0600'
+        src: icecast/cloudflare.ini.j2
+        dest: "/etc/cloudflare.ini"
         force: no
 
-    # Main Domain
-    - name: "Check if the cert exists for {{ domain }}"
+    - name: Check if the cert exists
       stat:
         path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
-      register: stat_domain_result
+      register: cert_file_result
 
-    - name: Run certbot command for item
-      command: certbot certonly -m "{{ cf_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}"
-      when: stat_domain_result.stat.exists == False
-
-    # Sites
-    - name: "Check if the cert exists for sites"
-      stat:
-        path: "/etc/letsencrypt/live/{{ item }}/fullchain.pem"
-      register: stat_result
-      with_items: "{{ sites }}"
-
-    - name: "Run certbot command for sites"
-      command: certbot certonly -m "{{ cf_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ item.item }}" -d "*.{{ item.item }}"
-      when: item.stat.exists == False
-      loop: "{{ stat_result.results }}"
+    - name: Run certbot command for stream page
+      command: certbot certonly --non-interactive --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}" -d "*.{{ domain }}"
+      when: 
+        - not cert_file_result.stat.exists
