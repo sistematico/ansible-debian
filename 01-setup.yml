@@ -13,6 +13,8 @@
       - nano
       - git
       - ntp
+      - apt-transport-https
+      - gnupg2
 
   tasks:
     - name: Enable root on /root/.ssh/authorized_keys file

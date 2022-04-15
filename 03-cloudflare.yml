@@ -19,7 +19,7 @@
 
     - name: "Create /etc/cloudflare.ini"
       template:
-        src: icecast/cloudflare.ini.j2
+        src: cloudflare/cloudflare.ini.j2
         dest: "/etc/cloudflare.ini"
         force: no
 
@@ -28,7 +28,7 @@
         path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
       register: cert_file_result
 
-    - name: Run certbot command for stream page
+    - name: "Run certbot command for {{ domain }}"
       command: certbot certonly --non-interactive --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}" -d "*.{{ domain }}"
       when: 
         - not cert_file_result.stat.exists
