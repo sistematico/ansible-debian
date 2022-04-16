@@ -2,22 +2,15 @@
 - hosts: all
   become: true
   vars:
-    node_version:  "17"
+    node_version:  "16"
     pnpm_version:  "next-7"
 
   tasks:
-    - name: Ensure dependencies are present
-      apt:
-        name:
-          - apt-transport-https
-          - gnupg2
-        state: present
-
-    - name: Add Nodesource repo
-      shell: "curl -fsSL https://deb.nodesource.com/setup_{{ node_version }}.x | sudo -E bash -"
+    - name: "Add NodeSource Repo"
+      shell: "curl -fsSL https://rpm.nodesource.com/setup_{{ node_version }}.x | sudo -E bash -"
 
     - name: Install Node.js
-      apt:
+      dnf:
         name: nodejs
         state: present
 

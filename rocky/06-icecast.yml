@@ -23,36 +23,12 @@
     packages:
       - icecast2
       - liquidsoap
-      - lame
-      - ffmpeg
-      - certbot
-      - python3-certbot-dns-cloudflare
-      - nginx
-      - rsync
-      - libfdk-aac2
   
   tasks:
-    - name: "Firewall rule - Allow connections on port: 8000 and 8080"
-      ansible.builtin.iptables:
-        chain: INPUT
-        protocol: tcp
-        destination_ports:
-          - "8000"
-          - "8080"
-        jump: ACCEPT
-      when: ansible_distribution == 'Ubuntu'
-
-    - name: Save current state of the firewall in system file
-      community.general.iptables_state:
-        state: saved
-        path: /etc/iptables/rules.v4
-      when: ansible_distribution == 'Ubuntu'
-
     - name: Install required system packages
-      apt:
-        pkg: "{{ item }}"
+      dnf:
+        name: "{{ packages }}"
         state: latest
-      with_items: "{{ packages }}"
 
     - name: Ensure group icecast2 exists
       ansible.builtin.group:
@@ -75,13 +51,6 @@
       template:
         src: icecast/icecast2.service.j2
         dest: /etc/systemd/system/icecast2.service
-
-    - name: Disable icecast2 stock systemd service unit
-      systemd:
-        name: icecast2
-        state: stopped
-        enabled: no
-        daemon_reload: yes
 
     - name: Copy icecast2 config file
       template:
@@ -161,28 +130,11 @@
         dest: /etc/sudoers.d/liquidsoap.conf
         force: yes
 
-    - name: "Create /etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }} file"
+    - name: "Create /etc/nginx/sites.d/90-{{ domain_prefix }}.{{ domain }} file"
       template:
         src: icecast/nginx.conf.j2
-        dest: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
+        dest: "/etc/nginx/sites.d/90-{{ domain_prefix }}.{{ domain }}"
         force: yes
-
-    - name: "Enable /etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
-      file:
-        src: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
-        dest: "/etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
-        state: link
-        force: yes
-
-    - name: "Disable nginx default"
-      file:
-        src: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
-        dest: "/etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
-
-    - name: "Disable nginx default"
-      ansible.builtin.file:
-        path: /etc/nginx/sites-enabled/default
-        state: absent
 
     # yt-dlp
     - name: Download yt-dlp
@@ -191,18 +143,10 @@
         dest: /usr/local/bin/yt-dlp
         mode: '0755'
 
-    - name: Download mp3 sample
-      script: scripts/download.sh
-      args:
-        executable: bash
-      when: 
-        - make_downloads is defined
-        - make_downloads == 'yes'
-
     # Cert
     - name: "Create /etc/cloudflare.ini"
       template:
-        src: cloudflare/cloudflare.ini.j2
+        src: ../templates/cloudflare/cloudflare.ini.j2
         dest: "/etc/cloudflare.ini"
         force: no
 
@@ -212,7 +156,7 @@
       register: cert_file_result
 
     - name: Run certbot command for stream page
-      command: certbot certonly --non-interactive --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}" -d "*.{{ domain }}"
+      command: certbot certonly --email "{{ cf_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}" -d "*.{{ domain }}"
       when: 
         - not cert_file_result.stat.exists
         - cf_email is defined
@@ -244,8 +188,3 @@
         name: liquidsoap
         state: started
         enabled: yes
-
-    - name: Restart nginx service
-      systemd:
-        name: nginx
-        state: restarted

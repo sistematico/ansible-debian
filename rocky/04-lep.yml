@@ -3,7 +3,7 @@
   become: true
 
   vars:
-    domain:       "{{ lookup('env','SITE') | default('nix.radiochat.com.br') }}"
+    domain:       "{{ lookup('env', 'SITE') | default('nix.radiochat.com.br', true) }}"
     ip_addr:      "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
     sites:
       - { idx: '02', url: 'somdomato.com' }
@@ -11,7 +11,7 @@
       - { idx: '04', url: 'radiochat.com.br' }
 
     nginx_user:   "nginx"
-    nginx_passwd: "{{ lookup('env','PASSWD') | default('') }}" 
+    nginx_passwd: "{{ lookup('env','PASSWD') | default('', true) }}" 
     php_version:  "8.0"
 
     packages:
@@ -110,6 +110,7 @@
         dest: "/etc/nginx/conf.d/{{ item }}"
         force: yes
       with_items:
+        - "php.conf"
         - "inertia.conf"
         - "laravel.conf"
         - "default.conf"
@@ -120,15 +121,23 @@
     - name: "Create {{ domain }} main site config file"
       template:
         src: ../templates/lep/centos/nginx/sites.d/domain.conf.j2
-        dest: "/etc/nginx/sites.d/01-{{ domain }}"
+        dest: "/etc/nginx/sites.d/01-{{ domain }}.conf"
         force: yes
 
     - name: "Configure /etc/nginx/sites.d/ config files"
       template:
         src: ../templates/lep/centos/nginx/sites.d/sites.conf.j2
-        dest: "/etc/nginx/sites.d/{{ item.idx }}-{{ item.url }}"
+        dest: "/etc/nginx/sites.d/{{ item.idx }}-{{ item.url }}.conf"
         force: yes
       with_items: "{{ sites }}"
+
+    - name: "Create /var/www/{{ domain }} directory if not exist"
+      file:
+        path: "/var/www/{{ domain }}"
+        state: directory
+        owner: nginx
+        group: nginx
+        mode: '0755'
 
     - name: "Create a index.html for {{ domain }}"
       template:

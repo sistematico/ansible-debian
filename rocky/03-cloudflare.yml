@@ -24,7 +24,7 @@
 
     - name: "Create /etc/cloudflare.ini"
       template:
-        src: cloudflare/cloudflare.ini.j2
+        src: ../templates/cloudflare/cloudflare.ini.j2
         dest: /etc/cloudflare.ini
         force: no
 
