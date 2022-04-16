@@ -21,6 +21,10 @@
       - php-xml
       - php-mbstring
       - php-sqlite3
+      - php-cli
+      - php-gd
+      - php-opcache
+      - php-zip
 
   tasks:
     - name: Install epel-release and dnf-utils packages
@@ -37,11 +41,16 @@
         disable_gpg_check: yes
         state: present
 
+    - name: DNF module reset stock php
+      command: dnf module reset php -y
+
+    - name: DNF module enable remi php
+      command: dnf module enable php:remi-8.0 -y 
+
     - name: Install required packages
       dnf:
         pkg: "{{ packages }}"
         state: latest
-        enablerepo: "remi,remi-php80"
       when: 
         - packages is defined
         - packages != ""
@@ -84,8 +93,8 @@
 
     - name: "Copy nginx.conf config file"
       template:
-        src: "lep/centos/nginx/nginx.conf.j2"
-        dest: "/etc/nginx/nginx.conf"
+        src: ../templates/lep/centos/nginx/nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
         force: yes
         backup: yes
 
@@ -97,7 +106,7 @@
 
     - name: "Copy nginx snippets"
       template:
-        src: "lep/centos/nginx/conf.d/{{ item }}.j2"
+        src: "../templates/lep/centos/nginx/conf.d/{{ item }}.j2"
         dest: "/etc/nginx/conf.d/{{ item }}"
         force: yes
       with_items:
@@ -108,22 +117,22 @@
         - "gzip.conf"
         - "map.codes"
 
-    - name: "Create /etc/nginx/sites.d/01-{{ domain }} file"
+    - name: "Create {{ domain }} main site config file"
       template:
-        src: lep/centos/nginx/sites.d/domain.conf.j2
+        src: ../templates/lep/centos/nginx/sites.d/domain.conf.j2
         dest: "/etc/nginx/sites.d/01-{{ domain }}"
         force: yes
 
-    - name: Configure /etc/nginx/sites.d/ files
+    - name: "Configure /etc/nginx/sites.d/ config files"
       template:
-        src: lep/centos/nginx/sites.d/sites.conf.j2
+        src: ../templates/lep/centos/nginx/sites.d/sites.conf.j2
         dest: "/etc/nginx/sites.d/{{ item.idx }}-{{ item.url }}"
         force: yes
       with_items: "{{ sites }}"
 
     - name: "Create a index.html for {{ domain }}"
       template:
-        src: "lep/index.html.j2"
+        src: "../templates/lep/index.html.j2"
         dest: "/var/www/{{ domain }}/index.html"
         force: no
 
@@ -144,7 +153,7 @@
       get_url:
         url: https://getcomposer.org/installer
         dest: /tmp/composer-installer.php
-        mode: 0755
+        mode: '0755'
         checksum: "sha384:{{ composer_installer_signature.content }}"
       when: not composer_bin.stat.exists
 
@@ -160,6 +169,11 @@
         creates: /usr/local/bin/composer
       when: not composer_bin.stat.exists
 
+    - name: Comment listen.acl_users and listen.acl_groups in /etc/php-fpm.d/www.conf
+      shell: |
+        sed -i 's/^listen.acl_users/;listen.acl_users/g' /etc/php-fpm.d/www.conf
+        sed -i 's/^listen.acl_groups/;listen.acl_groups/g' /etc/php-fpm.d/www.conf
+
     - name: Restart nginx
       service:
         name: nginx
@@ -168,6 +182,6 @@
 
     - name: Restart php
       service:
-        name: "php{{ php_version }}-fpm"
+        name: "php-fpm"
         state: restarted
         enabled: yes
