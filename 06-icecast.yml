@@ -3,23 +3,25 @@
   become: true
 
   vars:
-    domain_prefix:     "radio"
-    domain:            "somdomato.com"
-    radio_name:        "Radio Som do Mato"
-    radio_description: "A mais sertaneja!"
-    radio_url:         "https://somdomato.com"
-    radio_genre:       "Sertanejo"
-    radio_mountpoint:  "geral"
-    radio_port:        8000
-    radio_password:    "hackme"
-    radio_bitrate:     128
-    icecast_passwd:    "{{ lookup('env','PASSWD') | default('hackme') }}"
-    liquidsoap_passwd: "{{ lookup('env','PASSWD') | default('hackme') }}"
-    cf_email:          "{{ lookup('env','CF_EMAIL') }}"
-    cf_token:          "{{ lookup('env','CF_TOKEN') }}"
+    domain_prefix:        "radio"
+    domain:               "somdomato.com"
+    radio_name:           "Radio Som do Mato"
+    radio_description:    "A mais sertaneja!"
+    radio_url:            "https://somdomato.com"
+    radio_genre:          "Sertanejo"
+    radio_mountpoint:     "geral"
+    radio_port:           8000
+    radio_password:       "hackme"
+    radio_admin_password: "hackmeagain"
+    radio_bitrate:        128
+    radio_queue_size:     1008576 # default: 524288
+    radio_burst_size:     252144  # default: 65535
+    icecast_passwd:       "{{ lookup('env','PASSWD') | default('hackme') }}"
+    liquidsoap_passwd:    "{{ lookup('env','PASSWD') | default('hackme') }}"
+    cf_email:             "{{ lookup('env','CF_EMAIL') }}"
+    cf_token:             "{{ lookup('env','CF_TOKEN') }}"
     packages:
       - icecast2
-      - liquidsoap   
       - ffmpeg
       - certbot
       - python3-certbot-dns-cloudflare
@@ -48,16 +50,26 @@
         pkg: "{{ item }}"
         state: latest
       with_items: "{{ packages }}"
-      when: 
-        - packages is defined
-        - packages != ""
 
-    - name: Ensure group icecast exists
+    - name: Install liquidsoap on Debian BullsEye
+      apt:
+        deb: https://github.com/savonet/liquidsoap/releases/download/v2.0.3/liquidsoap_2.0.3-debian-bullseye-2_amd64.deb
+      when:
+        - ansible_distribution == 'Debian'
+        - ansible_distribution_major_version == '11'
+
+    - name: Install liquidsoap on Ubuntu or Debian != 11
+      apt:
+        name: liquidsoap
+      when: (ansible_distribution != 'Debian') or
+        (ansible_distribution_major_version != '11')      
+
+    - name: Ensure group icecast2 exists
       ansible.builtin.group:
         name: icecast2
         state: present
 
-    - name: Create a 2048-bit SSH key for user icecast in ~/icecast/.ssh/id_rsa
+    - name: Create a 2048-bit SSH key for user icecast2 in /home/icecast/.ssh/id_rsa
       ansible.builtin.user:
         name: icecast2
         group: icecast2
@@ -154,10 +166,10 @@
         mode: '0644'
         force: yes
       with_items:
-        - { orig: "liquidsoap/radio.liq.j2", dest: "/etc/liquidsoap/radio.liq" }
+        - { orig: "liquidsoap/radio.liq.j2",    dest: "/etc/liquidsoap/radio.liq" }
         - { orig: "liquidsoap/requests.liq.j2", dest: "/etc/liquidsoap/requests.liq" }
-        - { orig: "liquidsoap/config.liq.j2", dest: "/etc/liquidsoap/config.liq" }
-        - { orig: "liquidsoap/outputs.liq.j2", dest: "/etc/liquidsoap/outputs.liq" }
+        - { orig: "liquidsoap/config.liq.j2",   dest: "/etc/liquidsoap/config.liq" }
+        - { orig: "liquidsoap/outputs.liq.j2",  dest: "/etc/liquidsoap/outputs.liq" }
 
     - name: Setup liquidsoap sudoers file
       template:
