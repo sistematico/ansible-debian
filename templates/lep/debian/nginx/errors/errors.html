@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--# if expr="$status = 502" -->
+    <meta http-equiv="refresh" content="3">
+    <!--# elif expr="$status = 500" -->
+    <meta http-equiv="refresh" content="3">
+    <!--# endif -->
+    <title>Máquina Hera - Erro <!--# echo var="status" default="" --></title>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet"> 
+    <link rel="shortcut icon" href="img/favicon.ico">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            margin: 0;
+            background: #282a36;
+            color: #f8f8f2;
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .menu {
+            display: flex;
+            flex-direction: row;
+            align-content: space-between;
+            margin: 10px;
+        }
+
+        .menu div {
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+
+        h1 { margin: .45rem; }
+        h2 { margin: .35rem; }
+        h3 { margin: 25rem; }
+        h4 { margin: .15rem; }
+        
+        img {
+            width: 200px;
+            transition: 1s;
+        }
+
+        img:hover,
+        img:focus {
+            filter: invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%);
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <img src="https://i.imgur.com/TgzYlnn.gif" alt="Error!">
+        <!--# if expr="$status = 502" -->
+            <h1>Nossas máquinas estão atualizando</h1>
+            <p>Em alguns segundos você será redirecionado.</p>
+        <!--# elif expr="$status = 500" -->
+            <h2>Nossos servidores estão reconstruindo os arquivos do NodeJS</h2>
+            <p>Em alguns segundos você será redirecionado.</p>
+        <!--# else -->
+            <h1>Erro <!--# echo var="status" default="" --></h1>
+            <h2><!--# echo var="status_text" default="Ocorreu um erro inesperado" --></h2>
+        <!--# endif -->
+    </main>
+</body>
+</script>
+</body>
+</html>

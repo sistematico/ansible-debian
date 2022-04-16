@@ -1,1 +1,5 @@
 .commit
+*.retry
+.idea
+.vagrant/
+*.log

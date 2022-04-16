@@ -89,7 +89,7 @@
 
     - name: "Copy nginx snippets"
       template:
-        src: "nginx/snippets/{{ item }}.j2"
+        src: "lep/debian/nginx/snippets/{{ item }}.j2"
         dest: "/etc/nginx/snippets/{{ item }}"
         force: yes
       with_items:
@@ -99,7 +99,7 @@
 
     - name: "Create /etc/nginx/sites-available/01-{{ domain }} file"
       template:
-        src: nginx/default.conf.j2
+        src: "lep/debian/nginx/sites-available/domain.conf.j2"
         dest: "/etc/nginx/sites-available/01-{{ domain }}"
         force: yes
 
@@ -112,7 +112,7 @@
 
     - name: Configure /etc/nginx/sites-available/ files
       template:
-        src: nginx/sites.conf.j2
+        src: lep/debian/nginx/sites-available/sites.conf.j2
         dest: "/etc/nginx/sites-available/{{ item.idx }}-{{ item.url }}"
         force: yes
       with_items: "{{ sites }}"

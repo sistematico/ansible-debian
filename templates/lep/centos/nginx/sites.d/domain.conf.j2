@@ -1,0 +1,24 @@
+server {
+    listen 80;
+    server_name {{ ip_addr }};
+    return 301 https://{{ domain }}$request_uri;
+}
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name {{ domain }};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+
+    ssl_certificate         /etc/letsencrypt/live/{{ domain }}/fullchain.pem;
+    ssl_certificate_key     /etc/letsencrypt/live/{{ domain }}/privkey.pem;
+
+    server_name {{ domain }};
+
+    include conf.d/default.conf;
+}

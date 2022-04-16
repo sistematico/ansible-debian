@@ -1,0 +1,45 @@
+---
+- hosts: all
+  become: true
+  vars:
+    node_version:  "17"
+    pnpm_version:  "next-7"
+
+  tasks:
+    - name: Ensure dependencies are present
+      apt:
+        name:
+          - apt-transport-https
+          - gnupg2
+        state: present
+
+    - name: Add Nodesource repo
+      shell: "curl -fsSL https://deb.nodesource.com/setup_{{ node_version }}.x | sudo -E bash -"
+
+    - name: Install Node.js
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Check if npm is installed
+      stat:
+        path: /usr/bin/npm
+      register: npm_path
+
+    - name: Download and install pnpm (https://pnpm.io)
+      shell: "curl -f https://get.pnpm.io/v{{ pnpm_version }}.js | node - add --global pnpm"
+      when: not npm_path.stat.exists
+
+    - name: Check if pnpm is installed
+      stat:
+        path: /usr/bin/pnpm
+      register: pnpm_path
+
+    - name: Install pnpm using npm
+      npm:
+        name: pnpm
+        version: "{{ pnpm_version }}"
+        global: yes
+      when: 
+        - not pnpm_path.stat.exists
+        - npm_path.stat.exists

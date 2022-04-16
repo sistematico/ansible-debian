@@ -1,0 +1,54 @@
+---
+- hosts: all
+  gather_facts: yes
+  become: true
+
+  tasks:
+    - name: Install epel-release
+      dnf:
+        name: epel-release
+        state: latest
+
+    - name: Install required packages
+      dnf:
+        name:
+          - iptables-services
+          - iptables-utils
+          - fail2ban
+          - fail2ban-firewalld
+        state: latest
+
+    - name: Restart firewalld
+      systemd:
+        name: firewalld
+        daemon_reload: yes
+        state: restarted
+        enabled: yes
+        
+    # FirewallD
+    - name: Allow ports
+      firewalld:
+        port: "{{ item }}"
+        permanent: yes
+        immediate: yes
+        state: enabled
+      with_items:
+        - 22/tcp
+        - 80/tcp
+        - 443/tcp
+        - 123/udp
+
+    # fail2ban
+    - name: Override some basic fail2ban configurations
+      template:
+        src: "fail2ban/jail.local.j2"
+        dest: /etc/fail2ban/jail.local
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted
+        enabled: yes

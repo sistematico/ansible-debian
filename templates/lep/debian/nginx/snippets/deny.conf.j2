@@ -1,0 +1,14 @@
+location ~ /\.ht { deny all; }
+
+location ~ /favicon.ico {
+    access_log off;
+    log_not_found off;
+    try_files $uri $uri/ =404;
+}
+
+location ~ /robots.txt {
+    allow all;
+    access_log off;
+    log_not_found off;
+    try_files $uri $uri/ =404;
+}

@@ -1,0 +1,251 @@
+---
+- hosts: all
+  become: true
+
+  vars:
+    domain_prefix:        "radio"
+    domain:               "somdomato.com"
+    radio_name:           "Radio Som do Mato"
+    radio_description:    "A mais sertaneja!"
+    radio_url:            "https://somdomato.com"
+    radio_genre:          "Sertanejo"
+    radio_mountpoint:     "geral"
+    radio_port:           8000
+    radio_password:       "hackme"
+    radio_admin_password: "hackmeagain"
+    radio_bitrate:        128
+    radio_queue_size:     1008576 # default: 524288
+    radio_burst_size:     252144  # default: 65535
+    icecast_passwd:       "{{ lookup('env','PASSWD') | default('hackme') }}"
+    liquidsoap_passwd:    "{{ lookup('env','PASSWD') | default('hackme') }}"
+    cf_email:             "{{ lookup('env','CF_EMAIL') }}"
+    cf_token:             "{{ lookup('env','CF_TOKEN') }}"
+    packages:
+      - icecast2
+      - liquidsoap
+      - lame
+      - ffmpeg
+      - certbot
+      - python3-certbot-dns-cloudflare
+      - nginx
+      - rsync
+      - libfdk-aac2
+  
+  tasks:
+    - name: "Firewall rule - Allow connections on port: 8000 and 8080"
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_ports:
+          - "8000"
+          - "8080"
+        jump: ACCEPT
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Save current state of the firewall in system file
+      community.general.iptables_state:
+        state: saved
+        path: /etc/iptables/rules.v4
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Install required system packages
+      apt:
+        pkg: "{{ item }}"
+        state: latest
+      with_items: "{{ packages }}"
+
+    - name: Ensure group icecast2 exists
+      ansible.builtin.group:
+        name: icecast2
+        state: present
+
+    - name: Create a 2048-bit SSH key for user icecast2 in /home/icecast/.ssh/id_rsa
+      ansible.builtin.user:
+        name: icecast2
+        group: icecast2
+        shell: /bin/bash
+        home: /home/icecast
+        password: "{{ icecast_passwd | password_hash('sha512') }}"
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        state: present
+
+    - name: Copy config file for icecast2 systemd service
+      template:
+        src: icecast/icecast2.service.j2
+        dest: /etc/systemd/system/icecast2.service
+
+    - name: Disable icecast2 stock systemd service unit
+      systemd:
+        name: icecast2
+        state: stopped
+        enabled: no
+        daemon_reload: yes
+
+    - name: Copy icecast2 config file
+      template:
+        src: icecast/icecast.xml.j2
+        dest: /etc/icecast2/icecast.xml
+
+    - name: Change file ownership, group and permissions
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: icecast2
+        group: icecast2
+        recurse: yes
+      with_items:
+        - /usr/share/icecast2
+        - /var/log/icecast2
+        - /home/icecast2
+        - /etc/icecast2
+
+    # LiquidSoap
+    - name: Ensure group liquidsoap exists
+      ansible.builtin.group:
+        name: liquidsoap
+        system: no
+        state: present
+
+    - name: Create a 2048-bit SSH key for user liquidsoap in ~/liquidsoap/.ssh/id_rsa
+      ansible.builtin.user:
+        name: liquidsoap
+        shell: /bin/bash
+        home: /home/liquidsoap
+        group: liquidsoap
+        password: "{{ liquidsoap_passwd | password_hash('sha512') }}"
+        system: no
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        state: present
+
+    - name: Creates directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: liquidsoap
+        group: liquidsoap
+        recurse: yes
+      with_items: 
+        - /etc/liquidsoap
+        - /opt/liquidsoap/music
+        - /opt/liquidsoap/scripts
+
+    - name: Setup liquidsoap systemd service
+      template:
+        src: liquidsoap/liquidsoap.service.j2
+        dest: /etc/systemd/system/liquidsoap.service
+        force: yes
+
+    - name: Setup liquidsoap
+      template:
+        src: "{{ item.orig }}"
+        dest: "{{ item.dest }}"
+        owner: liquidsoap
+        group: liquidsoap
+        mode: '0644'
+        force: yes
+      with_items:
+        - { orig: "liquidsoap/config.liq.j2",        dest: "/etc/liquidsoap/config.liq" }
+        - { orig: "liquidsoap/radio.liq.j2",         dest: "/etc/liquidsoap/radio.liq" }
+        - { orig: "liquidsoap/requests.liq.j2",      dest: "/etc/liquidsoap/requests.liq" }
+        - { orig: "liquidsoap/output.ffmpeg.liq.j2", dest: "/etc/liquidsoap/output.ffmpeg.liq" }
+        - { orig: "liquidsoap/output.mp3.liq.j2",    dest: "/etc/liquidsoap/output.mp3.liq" }
+        - { orig: "liquidsoap/output.vorbis.liq.j2", dest: "/etc/liquidsoap/output.vorbis.liq" }
+
+    - name: Setup liquidsoap sudoers file
+      template:
+        src: liquidsoap/liquidsoap.sudoers.conf.j2
+        dest: /etc/sudoers.d/liquidsoap.conf
+        force: yes
+
+    - name: "Create /etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }} file"
+      template:
+        src: icecast/nginx.conf.j2
+        dest: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
+        force: yes
+
+    - name: "Enable /etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
+      file:
+        src: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
+        dest: "/etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
+        state: link
+        force: yes
+
+    - name: "Disable nginx default"
+      file:
+        src: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
+        dest: "/etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
+
+    - name: "Disable nginx default"
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    # yt-dlp
+    - name: Download yt-dlp
+      get_url:
+        url: https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp
+        dest: /usr/local/bin/yt-dlp
+        mode: '0755'
+
+    - name: Download mp3 sample
+      script: scripts/download.sh
+      args:
+        executable: bash
+      when: 
+        - make_downloads is defined
+        - make_downloads == 'yes'
+
+    # Cert
+    - name: "Create /etc/cloudflare.ini"
+      template:
+        src: cloudflare/cloudflare.ini.j2
+        dest: "/etc/cloudflare.ini"
+        force: no
+
+    - name: Check if the cert exists
+      stat:
+        path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+      register: cert_file_result
+
+    - name: Run certbot command for stream page
+      command: certbot certonly --non-interactive --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}" -d "*.{{ domain }}"
+      when: 
+        - not cert_file_result.stat.exists
+        - cf_email is defined
+        - cf_email != ""
+        - cf_token is defined
+        - cf_token != ""
+
+    - name: Create icecast key
+      shell: "cat /etc/letsencrypt/live/{{ domain }}/fullchain.pem /etc/letsencrypt/live/{{ domain }}/privkey.pem > /usr/share/icecast2/icecast.pem"
+      when: cert_file_result.stat.exists
+
+    - name: Change file ownership, group and permissions of /usr/share/icecast/icecast.pem
+      ansible.builtin.file:
+        path: /usr/share/icecast2/icecast.pem
+        owner: icecast2
+        group: icecast2
+        mode: '0660'
+      when: cert_file_result.stat.exists
+
+    - name: Run and enable icecast2 systemd unit
+      systemd:
+        name: icecast2
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Enable and restart liquidsoap service
+      systemd:
+        name: liquidsoap
+        state: started
+        enabled: yes
+
+    - name: Restart nginx service
+      systemd:
+        name: nginx
+        state: restarted

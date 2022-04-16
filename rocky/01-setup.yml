@@ -1,0 +1,106 @@
+---
+- hosts: all
+  gather_facts: yes
+  become: true
+
+  vars:
+    root_passwd: "{{ lookup('env','PASSWD') | default('') }}"
+    sudo_user:   "{{ lookup('env','USER') | default('') }}"
+    hostname:    "{{ lookup('env','HOSTNAME') | default('nix') }}"
+    timezone:    "{{ lookup('env','TIMEZONE') | default('America/Sao_Paulo') }}"
+    packages:
+      - epel-release
+      - sudo
+      - curl
+      - nano
+      - git
+      - chrony
+
+  tasks:
+    - fail:
+        msg: "Este playbook roda exclusivamente em sistemas RockyLinux!"
+      when: ansible_distribution != 'Rocky'
+
+    - name: Change password for root user
+      user:
+        name: root
+        state: present
+        password: "{{ root_passwd | password_hash('sha512') }}"
+      when: 
+        - root_passwd is defined
+        - root_passwd != ""
+
+    - name: Set a hostname
+      hostname:
+        name: "{{ hostname }}"
+        use: systemd
+      when: 
+        - hostname is defined
+        - hostname != ""
+
+    - name: Upgrade all packages
+      dnf:
+        name: "*"
+        state: latest
+
+    - name: Install required system packages
+      dnf:
+        name: "{{ packages }}"
+        state: latest
+      when: 
+        - packages is defined
+        - packages != ""
+
+    - name: "Set timezone to {{ timezone }}"
+      timezone:
+        name: "{{ timezone }}"
+      when: 
+        - timezone is defined
+        - timezone != ""
+
+    - name: Make sure chronyd is started, and is enabled on restart.
+      service:
+        name: chronyd
+        state: started
+        enabled: yes
+      when: 
+        - timezone is defined
+        - timezone != ""
+
+    - name: Setup passwordless wheel
+      lineinfile:
+        path: /etc/sudoers
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+        state: present
+      when: 
+        - sudo_user is defined
+        - sudo_user != ""
+
+    - name: Create a new regular user with sudo privileges
+      user:
+        name: "{{ sudo_user }}"
+        state: present
+        groups: wheel
+        append: true
+        create_home: true
+      when: 
+        - sudo_user is defined
+        - sudo_user != ""
+
+    - name: Set authorized key for remote user
+      authorized_key:
+        user: "{{ sudo_user }}"
+        state: present
+        key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+      when: 
+        - sudo_user is defined
+        - sudo_user != ""
+        - lookup('env','VAGRANT') is not defined
+
+    - name: Download ix
+      get_url:
+        url: http://ix.io/client
+        dest: /usr/local/bin/ix
+        mode: '0755'

@@ -1,0 +1,173 @@
+---
+- hosts: all
+  become: true
+
+  vars:
+    domain:       "{{ lookup('env','SITE') | default('nix.radiochat.com.br') }}"
+    ip_addr:      "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
+    sites:
+      - { idx: '02', url: 'somdomato.com' }
+      - { idx: '03', url: 'packetloss.com.br' }
+      - { idx: '04', url: 'radiochat.com.br' }
+
+    nginx_user:   "nginx"
+    nginx_passwd: "{{ lookup('env','PASSWD') | default('') }}" 
+    php_version:  "8.0"
+
+    packages:
+      - nginx
+      - php-fpm
+      - php-curl
+      - php-xml
+      - php-mbstring
+      - php-sqlite3
+
+  tasks:
+    - name: Install epel-release and dnf-utils packages
+      dnf:
+        name:
+          - epel-release
+          - dnf-utils
+        update_cache: yes
+        state: latest
+
+    - name: Install remi repo
+      dnf:
+        name: 'http://rpms.remirepo.net/enterprise/remi-release-8.rpm'
+        disable_gpg_check: yes
+        state: present
+
+    - name: Install required packages
+      dnf:
+        pkg: "{{ packages }}"
+        state: latest
+        enablerepo: "remi,remi-php80"
+      when: 
+        - packages is defined
+        - packages != ""
+
+    - name: Replace all occurrences from apache to nginx
+      replace:
+        path: "{{ item }}"
+        regexp: "apache"
+        replace: "nginx"
+      with_items:
+        - "/etc/nginx/nginx.conf"
+        - "/etc/logrotate.d/nginx"
+        - "/etc/nginx/nginx.conf"
+        - "/etc/php-fpm.d/www.conf"
+
+    - name: Ensure group nginx exists
+      ansible.builtin.group:
+        name: nginx
+        state: present
+
+    - name: Create a 2048-bit SSH key for user nginx in ~/nginx/.ssh/id_rsa
+      ansible.builtin.user:
+        name: nginx
+        shell: /bin/bash
+        home: /home/nginx
+        password: "{{ nginx_passwd | password_hash('sha512') }}"
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        state: present
+
+    - name: Change nginx permissions
+      file:
+        path: "{{ item }}"
+        owner: "{{ nginx_user }}"
+        group: "{{ nginx_user }}"
+      loop:
+        - /var/log/nginx
+        - /var/lib/nginx
+
+    - name: "Copy nginx.conf config file"
+      template:
+        src: "lep/centos/nginx/nginx.conf.j2"
+        dest: "/etc/nginx/nginx.conf"
+        force: yes
+        backup: yes
+
+    - name: "Create /etc/nginx/sites.d directory if not exist"
+      file:
+        path: /etc/nginx/sites.d
+        state: directory
+        mode: '0755'
+
+    - name: "Copy nginx snippets"
+      template:
+        src: "lep/centos/nginx/conf.d/{{ item }}.j2"
+        dest: "/etc/nginx/conf.d/{{ item }}"
+        force: yes
+      with_items:
+        - "inertia.conf"
+        - "laravel.conf"
+        - "default.conf"
+        - "errors.conf"
+        - "gzip.conf"
+        - "map.codes"
+
+    - name: "Create /etc/nginx/sites.d/01-{{ domain }} file"
+      template:
+        src: lep/centos/nginx/sites.d/domain.conf.j2
+        dest: "/etc/nginx/sites.d/01-{{ domain }}"
+        force: yes
+
+    - name: Configure /etc/nginx/sites.d/ files
+      template:
+        src: lep/centos/nginx/sites.d/sites.conf.j2
+        dest: "/etc/nginx/sites.d/{{ item.idx }}-{{ item.url }}"
+        force: yes
+      with_items: "{{ sites }}"
+
+    - name: "Create a index.html for {{ domain }}"
+      template:
+        src: "lep/index.html.j2"
+        dest: "/var/www/{{ domain }}/index.html"
+        force: no
+
+    # Composer
+    - name: Check if Composer is installed
+      stat:
+        path: /usr/local/bin/composer
+      register: composer_bin
+
+    - name: Get Composer installer signature
+      uri:
+        url: https://composer.github.io/installer.sig
+        return_content: true
+      register: composer_installer_signature
+      when: not composer_bin.stat.exists
+
+    - name: Download Composer installer
+      get_url:
+        url: https://getcomposer.org/installer
+        dest: /tmp/composer-installer.php
+        mode: 0755
+        checksum: "sha384:{{ composer_installer_signature.content }}"
+      when: not composer_bin.stat.exists
+
+    - name: Run Composer installer
+      command: php composer-installer.php
+      args:
+        chdir: /tmp
+      when: not composer_bin.stat.exists
+
+    - name: Move Composer into globally-accessible location
+      command: mv /tmp/composer.phar /usr/local/bin/composer
+      args:
+        creates: /usr/local/bin/composer
+      when: not composer_bin.stat.exists
+
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    - name: Restart php
+      service:
+        name: "php{{ php_version }}-fpm"
+        state: restarted
+        enabled: yes

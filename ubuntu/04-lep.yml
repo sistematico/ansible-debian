@@ -1,0 +1,185 @@
+---
+- hosts: all
+  become: true
+
+  vars:
+    domain:       "{{ lookup('env','DOMAIN') | default('nix.radiochat.com.br') }}"
+    ip_addr:      "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
+    sites:
+      - { idx: '02', url: 'somdomato.com' }
+      - { idx: '03', url: 'packetloss.com.br' }
+      - { idx: '04', url: 'radiochat.com.br' }
+
+    nginx_user:   "nginx"
+    nginx_passwd: "{{ lookup('env','PASSWD') | default('') }}" 
+    php_version:  "8.0"
+
+    packages:
+      - "nginx"
+      - "php{{ php_version }}-fpm"
+      - "php{{ php_version }}-curl"
+      - "php{{ php_version }}-xml"
+      - "php{{ php_version }}-mbstring"
+      - "php{{ php_version }}-sqlite3"
+
+  tasks:
+    - name: Install required packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - gnupg2
+
+    - name: Add Surý APT key
+      ansible.builtin.apt_key:
+        url: https://packages.sury.org/php/apt.gpg
+        state: present
+
+    - name: Add Surý APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb https://packages.sury.org/php/ {{ ansible_distribution_release }} main"
+        state: present
+        update_cache: yes
+      when: ansible_distribution == 'Debian'
+
+    - name: Install required packages
+      apt:
+        pkg: "{{ item }}"
+        state: latest
+      with_items: "{{ packages }}"
+      when: 
+        - packages is defined
+        - packages != ""
+
+    - name: Replace all occurrences from www-data to nginx
+      replace:
+        path: "{{ item }}"
+        regexp: "www-data"
+        replace: "nginx"
+      with_items:
+        - "/etc/nginx/nginx.conf"
+        - "/etc/logrotate.d/nginx"
+        - "/etc/nginx/nginx.conf"
+        - "/etc/php/{{ php_version }}/fpm/pool.d/www.conf"
+
+    - name: Ensure group nginx exists
+      ansible.builtin.group:
+        name: nginx
+        state: present
+
+    - name: Create a 2048-bit SSH key for user nginx in ~/nginx/.ssh/id_rsa
+      ansible.builtin.user:
+        name: nginx
+        shell: /bin/bash
+        home: /home/nginx
+        password: "{{ nginx_passwd | password_hash('sha512') }}"
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        state: present
+
+    - name: Change nginx permissions
+      file:
+        path: "{{ item }}"
+        owner: "{{ nginx_user }}"
+        group: "{{ nginx_user }}"
+      loop:
+        - /var/log/nginx
+        - /run/php
+        - /var/lib/nginx
+
+    - name: "Copy nginx snippets"
+      template:
+        src: "lep/debian/nginx/snippets/{{ item }}.j2"
+        dest: "/etc/nginx/snippets/{{ item }}"
+        force: yes
+      with_items:
+        - "inertia.conf"
+        - "laravel.conf"
+        - "default.conf"
+
+    - name: "Create /etc/nginx/sites-available/01-{{ domain }} file"
+      template:
+        src: lep/debian/nginx/default.conf.j2
+        dest: "/etc/nginx/sites-available/01-{{ domain }}"
+        force: yes
+
+    - name: "Enable /etc/nginx/sites-enabled/01-{{ domain }}"
+      file:
+        src: "/etc/nginx/sites-available/01-{{ domain }}"
+        dest: "/etc/nginx/sites-enabled/01-{{ domain }}"
+        state: link
+        force: yes
+
+    - name: Configure /etc/nginx/sites-available/ files
+      template:
+        src: lep/debian/nginx/sites.conf.j2
+        dest: "/etc/nginx/sites-available/{{ item.idx }}-{{ item.url }}"
+        force: yes
+      with_items: "{{ sites }}"
+
+    - name: Enables sites
+      file:
+        src: "/etc/nginx/sites-available/{{ item.idx }}-{{ item.url }}"
+        dest: "/etc/nginx/sites-enabled/{{ item.idx }}-{{ item.url }}"
+        state: link
+      with_items: "{{ sites }}"
+
+    - name: Remove /etc/nginx/sites-enabled/default link
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Remove /etc/nginx/sites-available/default file
+      file:
+        path: /etc/nginx/sites-available/default
+        state: absent
+
+    # Composer
+    - name: Check if Composer is installed
+      stat:
+        path: /usr/local/bin/composer
+      register: composer_bin
+
+    - name: Get Composer installer signature
+      uri:
+        url: https://composer.github.io/installer.sig
+        return_content: true
+      register: composer_installer_signature
+      when: not composer_bin.stat.exists
+
+    - name: Download Composer installer
+      get_url:
+        url: https://getcomposer.org/installer
+        dest: /tmp/composer-installer.php
+        mode: 0755
+        checksum: "sha384:{{ composer_installer_signature.content }}"
+      when: not composer_bin.stat.exists
+
+    - name: Run Composer installer
+      command: php composer-installer.php
+      args:
+        chdir: /tmp
+      when: not composer_bin.stat.exists
+
+    - name: Move Composer into globally-accessible location
+      command: mv /tmp/composer.phar /usr/local/bin/composer
+      args:
+        creates: /usr/local/bin/composer
+      when: not composer_bin.stat.exists
+
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    - name: Restart php
+      service:
+        name: "php{{ php_version }}-fpm"
+        state: restarted
+        enabled: yes
+
+    - name: Delete /run/nologin if it exists
+      file:
+        path: /run/nologin
+        state: absent

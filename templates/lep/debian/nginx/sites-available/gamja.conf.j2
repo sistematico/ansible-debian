@@ -1,0 +1,35 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name gamja.{{ sites[0] }};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    ssl_certificate         /etc/letsencrypt/live/{{ sites[0] }}/fullchain.pem;
+    ssl_certificate_key     /etc/letsencrypt/live/{{ sites[0] }}/privkey.pem;
+
+    index index.html;
+    server_name gamja.{{ sites[0] }};
+
+    location / {
+        root /var/www/gamja.{{ sites[0] }}/dist;
+    }
+
+    location /socket {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_read_timeout 600s;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+}

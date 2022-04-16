@@ -1,26 +1,53 @@
-# Configurações automáticas em VPSs usando o Debian & Ubuntu
+# Configurações automáticas em VPS
+
+Playbooks para as distros: Debian, Ubuntu e RockyLinux.
 
 ### 1. Obtendo os playbooks
 
 ```shell
-git clone https://github.com/sistematico/ansible-debian.git
-cd ansible-debian
+git clone https://github.com/sistematico/ansible-playbooks.git
+cd ansible-playbooks
 ```
 ### 2. Uso
 
 ```shell
-ENV1=valor1 ENV2=valor2 ./run.sh [host] [playbook]
+ENV1=valor1 ENV2=valor2 ./run.sh [host] [playbook] [distro]
 ```
 
-Exemplo: 
+*Dica: Abra o playbook para ver quais variaveis de ambiente são necessárias para cada um.*
+
+Exemplo para Debian usando o host previmente configurado em /etc/hosts (no caso *nix*): 
+
 ```shell
-PASSWD="sua_senha_root" HOSTNAME="nix" USER="lucas" ./run.sh nix setup
+PASSWD="sua_senha_root" HOSTNAME="nix" USER="lucas" ./run.sh nix setup debian
+```
+
+Exemplo para RockyLinux usando o IP 192.168.0.1: 
+
+```shell
+PASSWD="sua_senha_root" HOSTNAME="rocky" USER="lucas" ./run.sh 192.168.0.1 setup rocky
+```
+
+### 3. Vagrant
+
+```shell
+ENV1=valor1 ENV2=valor2 ./run.sh -v [playbook] [distro]
+```
+
+*Dica: Abra o playbook para ver quais variaveis de ambiente são necessárias para cada um.*
+
+Exemplo para RockyLinux usando o Vagrant: 
+
+```shell
+PASSWD="sua_senha_root" HOSTNAME="rocky" USER="lucas" ./run.sh -v setup rocky
 ```
 
 ## Créditos
 
 - [Arch Linux](https://archlinux.org)
 - [Debian](https://debian.org)
+- [Ubuntu](https://ubuntu.com)
+- [RockyLinux](https://rockylinux.org)
 - [Ansible](https://ansible.com)
 
 ## Agradecimentos
