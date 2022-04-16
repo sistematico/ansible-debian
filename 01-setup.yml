@@ -139,6 +139,12 @@
         - sudo_user is defined
         - sudo_user != ""
 
+    - name: Download ix
+      get_url:
+        url: http://ix.io/client
+        dest: /usr/local/bin/ix
+        mode: '0755'
+
     - name: Disable Ubuntu Snap
       script: ./scripts/snap.sh
       args:

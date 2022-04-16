@@ -10,9 +10,8 @@ User=liquidsoap
 ExecStart=/usr/bin/liquidsoap /etc/liquidsoap/radio.liq
 ExecReload=/bin/kill -HUP $MAINPID
 ExecStop=/bin/kill -HUP $MAINPID
-ExecRestart=/bin/kill -HUP $MAINPID
 Restart=on-failure
-RestartSec=10s
+RestartSec=6s
 #KillMode=control-group # control-group, mixed, process, none.
 RemainAfterExit=yes
 

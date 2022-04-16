@@ -27,6 +27,7 @@
       - python3-certbot-dns-cloudflare
       - nginx
       - rsync
+      - libfdk-aac2
   
   tasks:
     - name: "Firewall rule - Allow connections on port: 8000 and 8080"
@@ -44,6 +45,14 @@
         state: saved
         path: /etc/iptables/rules.v4
       when: ansible_distribution == 'Ubuntu'
+
+    - name: Add specified repository into sources list
+      ansible.builtin.apt_repository:
+        repo: "deb http://deb.debian.org/debian/ {{ ansible_distribution_release }} main contrib non-free"
+        state: present
+      when:
+        - ansible_distribution == 'Debian'
+        - ansible_distribution_release == 'bullseye'
 
     - name: Install required system packages
       apt:
@@ -168,8 +177,29 @@
       with_items:
         - { orig: "liquidsoap/radio.liq.j2",    dest: "/etc/liquidsoap/radio.liq" }
         - { orig: "liquidsoap/requests.liq.j2", dest: "/etc/liquidsoap/requests.liq" }
-        - { orig: "liquidsoap/config.liq.j2",   dest: "/etc/liquidsoap/config.liq" }
         - { orig: "liquidsoap/outputs.liq.j2",  dest: "/etc/liquidsoap/outputs.liq" }
+
+    - name: Setup liquidsoap config.liq for BullsEye
+      template:
+        src: liquidsoap/config2.liq.j2
+        dest: /etc/liquidsoap/config.liq
+        owner: liquidsoap
+        group: liquidsoap
+        mode: '0644'
+        force: yes
+      when:
+        - ansible_distribution == 'Debian'
+        - ansible_distribution_release == 'bullseye'
+
+    - name: Setup liquidsoap config.liq
+      template:
+        src: liquidsoap/config.liq.j2
+        dest: /etc/liquidsoap/config.liq
+        owner: liquidsoap
+        group: liquidsoap
+        mode: '0644'
+        force: yes
+      when: (ansible_distribution != 'Debian' or ansible_distribution_release != 'bullseye')
 
     - name: Setup liquidsoap sudoers file
       template:
