@@ -22,8 +22,8 @@
     <hostname>localhost</hostname>
 
     <listen-socket>
-        <port>8000</port>
-        <shoutcast-mount>/{{ radio_mountpoint }}</shoutcast-mount>
+        <port>{{ radio_port }}</port>
+        <mount-name>/{{ radio_mountpoint }}</mount-name>
         <charset>UTF-8</charset>
         <stream-name>{{ radio_name }}</stream-name>
         <stream-description>{{ radio_description }}</stream-description>

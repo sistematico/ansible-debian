@@ -7,14 +7,4 @@ live = input.harbor("aovivo", port = 8080, password = "{{ radio_password }}")
 lista = playlist("/opt/liquidsoap/music")
 radio = fallback(track_sensitive=false, [live, lista])
 
-output.icecast(%mp3
-        (bitrate={{ radio_bitrate }}, samplerate=44100, id3v2=true),
-        host = "localhost",
-        port = {{ radio_port }},
-        password = "{{ radio_password }}",
-        mount = "/{{ radio_mountpoint }}",
-        name = "{{ radio_name }}",
-        description = "{{ radio_description }}",
-        genre = "{{ radio_genre }}",
-        icy_metadata="true",
-        mksafe(radio))
+%include "output.ffmpeg.liq"
