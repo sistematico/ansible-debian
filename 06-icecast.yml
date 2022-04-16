@@ -152,14 +152,6 @@
         - /opt/liquidsoap/music
         - /opt/liquidsoap/scripts
 
-    # - name: Create empty log file
-    #   file:
-    #     path: /var/log/liquidsoap.log
-    #     state: touch
-    #     owner: liquidsoap
-    #     group: liquidsoap
-    #     mode: 0644
-
     - name: Setup liquidsoap systemd service
       template:
         src: liquidsoap/liquidsoap.service.j2
