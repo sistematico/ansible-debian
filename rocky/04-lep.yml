@@ -122,13 +122,13 @@
       template:
         src: ../templates/lep/centos/nginx/sites.d/domain.conf.j2
         dest: "/etc/nginx/sites.d/01-{{ domain }}.conf"
-        force: yes
+        force: no
 
     - name: "Configure /etc/nginx/sites.d/ config files"
       template:
         src: ../templates/lep/centos/nginx/sites.d/sites.conf.j2
         dest: "/etc/nginx/sites.d/{{ item.idx }}-{{ item.url }}.conf"
-        force: yes
+        force: no
       with_items: "{{ sites }}"
 
     - name: "Create /var/www/{{ domain }} directory if not exist"
@@ -178,10 +178,13 @@
         creates: /usr/local/bin/composer
       when: not composer_bin.stat.exists
 
-    - name: Comment listen.acl_users and listen.acl_groups in /etc/php-fpm.d/www.conf
+    - name: Comment listen.acl_* and uncomment listen.* in /etc/php-fpm.d/www.conf
       shell: |
         sed -i 's/^listen.acl_users/;listen.acl_users/g' /etc/php-fpm.d/www.conf
         sed -i 's/^listen.acl_groups/;listen.acl_groups/g' /etc/php-fpm.d/www.conf
+        sed -i 's/^;listen.owner/listen.owner = nginx/g' /etc/php-fpm.d/www.conf
+        sed -i 's/^;listen.group/listen.group = nginx/g' /etc/php-fpm.d/www.conf
+        sed -i 's/^;listen.mode/listen.mode = 0660/g' /etc/php-fpm.d/www.conf
 
     - name: Restart nginx
       service:
