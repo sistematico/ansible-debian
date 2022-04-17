@@ -223,10 +223,10 @@
         - cf_token != ""
 
     - name: Create icecast key
-      shell: "cat /etc/letsencrypt/live/{{ domain }}/fullchain.pem /etc/letsencrypt/live/{{ domain }}/privkey.pem > /usr/share/icecast2/icecast.pem"
+      shell: "cat /etc/letsencrypt/live/{{ domain }}/fullchain.pem /etc/letsencrypt/live/{{ domain }}/privkey.pem > {{ icecast_dir }}/icecast.pem"
       when: cert_file_result.stat.exists
 
-    - name: Change file ownership, group and permissions of /usr/share/icecast/icecast.pem
+    - name: "Change file ownership, group and permissions of {{ icecast_dir }}/icecast.pem"
       ansible.builtin.file:
         path: "{{ icecast_dir }}/icecast.pem"
         owner: "{{ icecast_user }}"
@@ -245,3 +245,8 @@
         name: liquidsoap
         state: started
         enabled: yes
+
+    - name: Restart nginx service
+      systemd:
+        name: nginx
+        state: restarted
