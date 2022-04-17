@@ -9,6 +9,7 @@
     hostname:    "{{ lookup('env','HOSTNAME') | default('nix') }}"
     timezone:    "{{ lookup('env','TIMEZONE') | default('America/Sao_Paulo') }}"
     packages:
+      - bash-completion
       - epel-release
       - sudo
       - curl

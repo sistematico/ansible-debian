@@ -182,9 +182,9 @@
       shell: |
         sed -i 's/^listen.acl_users/;listen.acl_users/g' /etc/php-fpm.d/www.conf
         sed -i 's/^listen.acl_groups/;listen.acl_groups/g' /etc/php-fpm.d/www.conf
-        sed -i 's/^;listen.owner/listen.owner = nginx/g' /etc/php-fpm.d/www.conf
-        sed -i 's/^;listen.group/listen.group = nginx/g' /etc/php-fpm.d/www.conf
-        sed -i 's/^;listen.mode/listen.mode = 0660/g' /etc/php-fpm.d/www.conf
+        sed -i 's/^;listen.owner.*/listen.owner = nginx/g' /etc/php-fpm.d/www.conf
+        sed -i 's/^;listen.group.*/listen.group = nginx/g' /etc/php-fpm.d/www.conf
+        sed -i 's/^;listen.mode/listen.mode/g' /etc/php-fpm.d/www.conf
 
     - name: Restart nginx
       service:
