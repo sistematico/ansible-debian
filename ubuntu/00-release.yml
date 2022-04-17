@@ -55,7 +55,7 @@
       register: conf
   
     - name: Upgrading Ubuntu to next release
-      command: do-release-upgrade -f DistUpgradeViewNonInteractive
+      command: do-release-upgrade -d -f DistUpgradeViewNonInteractive
       when: conf is changed
 
     - name: Reboot if have a release upgrade

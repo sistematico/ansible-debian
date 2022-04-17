@@ -40,7 +40,7 @@
         name: 'http://rpms.remirepo.net/enterprise/remi-release-8.rpm'
         disable_gpg_check: yes
         state: present
-
+        
     - name: DNF module reset stock php
       command: dnf module reset php -y
 

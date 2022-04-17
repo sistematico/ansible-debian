@@ -5,6 +5,7 @@
   vars:
     domain_prefix:        "radio"
     domain:               "somdomato.com"
+    
     radio_name:           "Radio Som do Mato"
     radio_description:    "A mais sertaneja!"
     radio_url:            "https://somdomato.com"
@@ -16,29 +17,64 @@
     radio_bitrate:        128
     radio_queue_size:     1008576 # default: 524288
     radio_burst_size:     252144  # default: 65535
+    
+    icecast_user:         "icecast"
+    icecast_group:        "icecast"
+    icecast_dir:          "/usr/share/icecast"
+    icecast_config:       "/etc/icecast.xml"
+    icecast_pidfile:      "/var/run/icecast/icecast.pid"
     icecast_passwd:       "{{ lookup('env','PASSWD') | default('hackme') }}"
+    
+    liquidsoap_user:      "liquidsoap"
+    liquidsoap_group:     "liquidsoap"
     liquidsoap_passwd:    "{{ lookup('env','PASSWD') | default('hackme') }}"
+    
     cf_email:             "{{ lookup('env','CF_EMAIL') }}"
     cf_token:             "{{ lookup('env','CF_TOKEN') }}"
+    
     packages:
-      - icecast2
       - liquidsoap
+      - curl-devel
+      - libtheora-devel
+      - libvorbis-devel
+      - libxslt-devel
+      - speex-devel
   
   tasks:
+    - name: Add OpenSuSE Liquidsoap repository
+      shell: |
+        curl -o /etc/yum.repos.d/liquidsoap.repo 'http://download.opensuse.org/repositories/home:/radiorabe:/liquidsoap/CentOS_8/home:radiorabe:liquidsoap.repo'
+
+    - name: Install RPM Fusion Free Updates remote repo
+      dnf:
+        name: 'https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm'
+        disable_gpg_check: yes
+        state: present
+
+    - name: Install Icecast
+      dnf:
+        name: 'https://download.fedoraproject.org/pub/epel/7/x86_64/Packages/i/icecast-2.4.4-1.el7.x86_64.rpm'
+        disable_gpg_check: yes
+        state: present
+
+    - name: Disable RadioRabe and RPMFusion
+      shell: dnf config-manager --set-disabled home_radiorabe_liquidsoap rpmfusion-free-updates -y
+
     - name: Install required system packages
       dnf:
         name: "{{ packages }}"
+        enablerepo: rpmfusion-free-updates,home_radiorabe_liquidsoap
         state: latest
 
-    - name: Ensure group icecast2 exists
+    - name: "Ensure group {{ icecast_group }} exists"
       ansible.builtin.group:
-        name: icecast2
+        name: "{{ icecast_group }}"
         state: present
 
-    - name: Create a 2048-bit SSH key for user icecast2 in /home/icecast/.ssh/id_rsa
+    - name: "Create a 2048-bit SSH key for user {{ icecast_user }} in /home/icecast/.ssh/id_rsa"
       ansible.builtin.user:
-        name: icecast2
-        group: icecast2
+        name: "{{ icecast_user }}"
+        group: "{{ icecast_group }}"
         shell: /bin/bash
         home: /home/icecast
         password: "{{ icecast_passwd | password_hash('sha512') }}"
@@ -47,27 +83,39 @@
         ssh_key_file: .ssh/id_rsa
         state: present
 
-    - name: Copy config file for icecast2 systemd service
-      template:
-        src: icecast/icecast2.service.j2
-        dest: /etc/systemd/system/icecast2.service
+    - name: Stop icecast stock systemd unit
+      systemd:
+        name: icecast
+        state: stopped
+        daemon_reload: true
 
-    - name: Copy icecast2 config file
+    - name: Copy config file for icecast systemd service
       template:
-        src: icecast/icecast.xml.j2
-        dest: /etc/icecast2/icecast.xml
+        src: ../templates/icecast/centos/icecast.service.j2
+        dest: /etc/systemd/system/icecast.service
+
+    - name: Copy icecast config file
+      template:
+        src: ../templates/icecast/centos/icecast.xml.j2
+        dest: "{{ icecast_config }}"
 
     - name: Change file ownership, group and permissions
       ansible.builtin.file:
         path: "{{ item }}"
-        owner: icecast2
-        group: icecast2
+        owner: "{{ icecast_user }}"
+        group: "{{ icecast_group }}"
         recurse: yes
       with_items:
-        - /usr/share/icecast2
+        - /usr/share/icecast
         - /var/log/icecast2
-        - /home/icecast2
-        - /etc/icecast2
+        - /home/icecast
+
+    - name: Change file ownership, group and permissions for /etc/icecast.xml
+      ansible.builtin.file:
+        path: /etc/icecast.xml
+        owner: "{{ icecast_user }}"
+        group: "{{ icecast_group }}"
+        mode: '0644'
 
     # LiquidSoap
     - name: Ensure group liquidsoap exists
@@ -104,7 +152,7 @@
 
     - name: Setup liquidsoap systemd service
       template:
-        src: liquidsoap/liquidsoap.service.j2
+        src: ../templates/icecast/centos/liquidsoap/liquidsoap.service.j2
         dest: /etc/systemd/system/liquidsoap.service
         force: yes
 
@@ -117,23 +165,33 @@
         mode: '0644'
         force: yes
       with_items:
-        - { orig: "liquidsoap/config.liq.j2",        dest: "/etc/liquidsoap/config.liq" }
-        - { orig: "liquidsoap/radio.liq.j2",         dest: "/etc/liquidsoap/radio.liq" }
-        - { orig: "liquidsoap/requests.liq.j2",      dest: "/etc/liquidsoap/requests.liq" }
-        - { orig: "liquidsoap/output.ffmpeg.liq.j2", dest: "/etc/liquidsoap/output.ffmpeg.liq" }
-        - { orig: "liquidsoap/output.mp3.liq.j2",    dest: "/etc/liquidsoap/output.mp3.liq" }
-        - { orig: "liquidsoap/output.vorbis.liq.j2", dest: "/etc/liquidsoap/output.vorbis.liq" }
+        - { orig: "../templates/icecast/centos/liquidsoap/config.liq.j2",        dest: "/etc/liquidsoap/config.liq" }
+        - { orig: "../templates/icecast/centos/liquidsoap/radio.liq.j2",         dest: "/etc/liquidsoap/radio.liq" }
+        - { orig: "../templates/icecast/centos/liquidsoap/requests.liq.j2",      dest: "/etc/liquidsoap/requests.liq" }
+        - { orig: "../templates/icecast/centos/liquidsoap/output.ffmpeg.liq.j2", dest: "/etc/liquidsoap/output.ffmpeg.liq" }
+        - { orig: "../templates/icecast/centos/liquidsoap/output.mp3.liq.j2",    dest: "/etc/liquidsoap/output.mp3.liq" }
+        - { orig: "../templates/icecast/centos/liquidsoap/output.vorbis.liq.j2", dest: "/etc/liquidsoap/output.vorbis.liq" }
 
     - name: Setup liquidsoap sudoers file
       template:
-        src: liquidsoap/liquidsoap.sudoers.conf.j2
-        dest: /etc/sudoers.d/liquidsoap.conf
+        src: ../templates/icecast/liquidsoap.sudoers.conf.j2
+        dest: /etc/sudoers.d/liquidsoap
+        mode: '0440'
         force: yes
 
-    - name: "Create /etc/nginx/sites.d/90-{{ domain_prefix }}.{{ domain }} file"
+    - name: "Create /etc/nginx/sites.d/90-{{ domain_prefix }}.{{ domain }}.conf file"
       template:
-        src: icecast/nginx.conf.j2
-        dest: "/etc/nginx/sites.d/90-{{ domain_prefix }}.{{ domain }}"
+        src: ../templates/icecast/nginx.conf.j2
+        dest: "/etc/nginx/sites.d/80-{{ domain_prefix }}.{{ domain }}.conf"
+        force: yes
+
+    - name: "Create /opt/liquidsoap/scripts/download.sh"
+      copy:
+        src: ../scripts/download.sh
+        dest: "/opt/liquidsoap/scripts/download.sh"
+        owner: liquidsoap
+        group: liquidsoap
+        mode: '0755'
         force: yes
 
     # yt-dlp
@@ -170,18 +228,17 @@
 
     - name: Change file ownership, group and permissions of /usr/share/icecast/icecast.pem
       ansible.builtin.file:
-        path: /usr/share/icecast2/icecast.pem
-        owner: icecast2
-        group: icecast2
+        path: "{{ icecast_dir }}/icecast.pem"
+        owner: "{{ icecast_user }}"
+        group: "{{ icecast_group }}"
         mode: '0660'
       when: cert_file_result.stat.exists
 
-    - name: Run and enable icecast2 systemd unit
+    - name: Run and enable icecast systemd unit
       systemd:
-        name: icecast2
+        name: icecast
         state: started
         enabled: true
-        daemon_reload: true
 
     - name: Enable and restart liquidsoap service
       systemd:

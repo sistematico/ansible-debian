@@ -1,0 +1,67 @@
+<icecast>
+    <location>Brazil</location>
+    <admin>sistematico@gmail.com</admin>
+    <limits>
+        <clients>1000</clients>
+        <sources>3</sources>
+        <queue-size>{{ radio_queue_size }}</queue-size>
+        <client-timeout>30</client-timeout>
+        <header-timeout>15</header-timeout>
+        <source-timeout>10</source-timeout>
+        <burst-on-connect>1</burst-on-connect>
+        <burst-size>{{ radio_burst_size }}</burst-size>
+    </limits>
+
+    <authentication>
+        <source-password>hackme</source-password>
+        <relay-password>hackme</relay-password>
+        <admin-user>admin</admin-user>
+        <admin-password>hackmeagain</admin-password>
+    </authentication>
+
+    <hostname>localhost</hostname>
+
+    <listen-socket>
+        <port>{{ radio_port }}</port>
+        <mount-name>/{{ radio_mountpoint }}</mount-name>
+        <charset>UTF-8</charset>
+        <stream-name>{{ radio_name }}</stream-name>
+        <stream-description>{{ radio_description }}</stream-description>
+        <stream-url>{{ radio_url }}</stream-url>
+        <genre>{{ radio_genre }}</genre>
+        <bitrate>{{ radio_bitrate }}</bitrate>
+    </listen-socket>
+
+    <listen-socket>
+        <port>8443</port>
+        <ssl>1</ssl>
+    </listen-socket>
+
+    <http-headers>
+        <header name="Access-Control-Allow-Origin" value="*" />
+    </http-headers>
+
+    <fileserve>1</fileserve>
+
+    <paths>
+        <basedir>{{ icecast_dir }}</basedir>
+        <logdir>/var/log/icecast2</logdir>
+        <webroot>{{ icecast_dir }}/web</webroot>
+        <adminroot>{{ icecast_dir }}/admin</adminroot>
+        <pidfile>{{ icecast_dir }}/icecast.pid</pidfile>
+        <alias source="/" destination="/status.xsl"/>
+        <alias source="/json" destination="/status-json.xsl"/>
+        <ssl-certificate>{{ icecast_dir }}/icecast.pem</ssl-certificate>
+    </paths>
+
+    <logging>
+        <accesslog>access.log</accesslog>
+        <errorlog>error.log</errorlog>
+        <loglevel>1</loglevel> <!-- 4 Debug, 3 Info, 2 Warn, 1 Error -->
+        <logsize>10000</logsize> <!-- Max size of a logfile -->
+    </logging>
+
+    <security>
+        <chroot>0</chroot>
+    </security>
+</icecast>
