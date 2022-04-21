@@ -17,9 +17,10 @@
         ssh_key_bits: 2048
         ssh_key_file: .ssh/id_rsa
 
-    - name: "Install kiwiirc"
+    - name: "Install KiwiIRC"
       dnf:
         name: 'https://kiwiirc.com/downloads/kiwiirc-20.05.24.1-1.x86_64.rpm'
+        disable_gpg_check: yes
         state: present
 
     - name: "Configure /etc/kiwiirc/config.conf file"
