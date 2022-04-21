@@ -36,6 +36,7 @@
       with_items:
         - 22/tcp
         - 80/tcp
+        - 6667/tcp
         - 443/tcp
         - 123/udp
 

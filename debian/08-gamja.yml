@@ -1,0 +1,91 @@
+---
+- hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    webchat:      "chat.somdomato.com"
+    repo:         "https://github.com/sistematico/gamja.git"
+    gamja_passwd: "{{ lookup('env','PASSWD') | default('hackme', true) }}" 
+
+  tasks:
+    - name: Ensure group "gamja" exists
+      ansible.builtin.group:
+        name: gamja
+        state: present
+
+    - name: Create a 2048-bit SSH key for user gamja in ~gamja/.ssh/id_rsa
+      ansible.builtin.user:
+        name: gamja
+        shell: /bin/bash
+        home: /home/gamja
+        group: gamja
+        password: "{{ gamja_passwd | password_hash('sha512') }}"
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+    
+    - name: Sets Nginx conf file for Debian based distros
+      template:
+        src: "gamja/gamja_nginx.conf.j2"
+        dest: "/etc/nginx/sites-available/{{ webchat }}.conf"
+        force: yes
+
+    - name: Enables new site
+      file:
+        src: "/etc/nginx/sites-available/{{ webchat }}.conf"
+        dest: "/etc/nginx/sites-enabled/{{ webchat }}.conf"
+        state: link
+
+    - name: Clone gamja src
+      ansible.builtin.git:
+        repo: "{{ repo }}"
+        dest: /var/www/{{ webchat }}
+        version: pt-br
+        force: yes
+
+    - name: Install gamja
+      ansible.builtin.command: npm install --production
+      args:
+        chdir: "/var/www/{{ webchat }}"
+
+    - name: Build gamja
+      ansible.builtin.command: |
+        npm install --include=dev
+        npm run build
+      args:
+        chdir: "/var/www/{{ webchat }}"
+
+    - name: "Create /var/www/{{ webchat }}/dist"
+      ansible.builtin.file:
+        path: "/var/www/{{ webchat }}/dist"
+        owner: gamja
+        group: gamja
+        mode: '0755'
+        state: directory
+
+    - name: Copy config file for gamja
+      template:
+        src: "gamja/config.json.j2"
+        dest: "/var/www/{{ webchat }}/dist/config.json"
+        force: no
+      notify: 
+        - Restart nginx
+
+    - name: "Give gamja permissions to /var/www/{{ webchat }}"
+      ansible.builtin.file:
+        path: /var/www/{{ webchat }}
+        owner: gamja
+        group: gamja
+        recurse: yes
+
+    - name: Delete /run/nologin if it exists
+      file:
+        path: /run/nologin
+        state: absent
+
+  handlers:
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted

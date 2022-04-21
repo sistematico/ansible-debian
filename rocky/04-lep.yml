@@ -98,12 +98,6 @@
         force: yes
         backup: yes
 
-    - name: "Create /etc/nginx/sites.d directory if not exist"
-      file:
-        path: /etc/nginx/sites.d
-        state: directory
-        mode: '0755'
-
     - name: "Copy nginx snippets"
       template:
         src: "../templates/lep/centos/nginx/conf.d/{{ item }}.j2"
@@ -117,6 +111,12 @@
         - "errors.conf"
         - "gzip.conf"
         - "map.codes"
+        
+    - name: "Create /etc/nginx/sites.d directory if not exist"
+      file:
+        path: /etc/nginx/sites.d
+        state: directory
+        mode: '0755'
 
     - name: "Create {{ domain }} main site config file"
       template:

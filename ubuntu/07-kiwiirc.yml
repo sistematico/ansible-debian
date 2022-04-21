@@ -2,29 +2,17 @@
 - hosts: all
   become: true
   vars:
-    domain_prefix: "chat"
-    domain:        "somdomato.com"
+    domain:  "somdomato.com"
+    webchat: "chat.somdomato.com"
+    passwd:  "{{ lookup('env','PASSWD') | default('hackme', true) }}" 
   
   tasks:
-    - name: "Firewall rule - Allow connections on port: 6667 and 7778"
-      ansible.builtin.iptables:
-        chain: INPUT
-        protocol: tcp
-        destination_ports:
-          - "6667"
-          - "7778"
-        jump: ACCEPT
-
-    - name: Save current state of the firewall in system file
-      community.general.iptables_state:
-        state: saved
-        path: /etc/iptables/rules.v4
-
     - name: Create a 2048-bit SSH key for user kiwiirc in ~kiwiirc/.ssh/id_rsa
       ansible.builtin.user:
         name: kiwiirc
         shell: /bin/bash
         home: /home/kiwiirc
+        password: "{{ passwd | password_hash('sha512') }}"
         generate_ssh_key: yes
         ssh_key_bits: 2048
         ssh_key_file: .ssh/id_rsa
@@ -43,16 +31,16 @@
         src: "kiwiirc/client.json.j2"
         dest: "/etc/kiwiirc/client.json"
 
-    - name: "Configure /etc/nginx/sites-available/80-{{ domain_prefix }}.{{ domain }} file"
+    - name: "Configure /etc/nginx/sites-available/80-{{ webchat }} file"
       template:
         src: kiwiirc/kiwiirc-nginx.conf.j2
-        dest: "/etc/nginx/sites-available/80-{{ domain_prefix }}.{{ domain }}"
+        dest: "/etc/nginx/sites-available/80-{{ webchat }}"
         force: yes
 
     - name: Enables sites
       file:
-        src: "/etc/nginx/sites-available/80-{{ domain_prefix }}.{{ domain }}"
-        dest: "/etc/nginx/sites-enabled/80-{{ domain_prefix }}.{{ domain }}"
+        src: "/etc/nginx/sites-available/80-{{ webchat }}"
+        dest: "/etc/nginx/sites-enabled/80-{{ webchat }}"
         state: link
 
     - name: Create custom theme directory
@@ -73,7 +61,7 @@
         force: yes        
 
     - name: Enable kiwiirc service
-      ansible.builtin.service:
+      service:
         name: kiwiirc
         state: restarted
         enabled: yes
