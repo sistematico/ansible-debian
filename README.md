@@ -11,7 +11,7 @@ cd ansible-playbooks
 ### 2. Uso
 
 ```shell
-ENV1=valor1 ENV2=valor2 ./run.sh [host] [playbook] [distro]
+ENV1=valor1 ENV2=valor2 ./run.sh [distro] [playbook] [host]
 ```
 
 *Dica: Abra o playbook para ver quais variaveis de ambiente são necessárias para cada um.*
@@ -19,19 +19,19 @@ ENV1=valor1 ENV2=valor2 ./run.sh [host] [playbook] [distro]
 Exemplo para Debian usando o host previmente configurado em /etc/hosts (no caso *nix*): 
 
 ```shell
-PASSWD="sua_senha_root" HOSTNAME="nix" USER="lucas" ./run.sh nix setup debian
+PASSWD="sua_senha_root" HOSTNAME="nix" USER="lucas" ./run.sh debian setup maquina.site.com
 ```
 
 Exemplo para RockyLinux usando o IP 192.168.0.1: 
 
 ```shell
-PASSWD="sua_senha_root" HOSTNAME="rocky" USER="lucas" ./run.sh 192.168.0.1 setup rocky
+PASSWD="sua_senha_root" HOSTNAME="rocky" USER="lucas" ./run.sh rocky setup 192.168.0.1
 ```
 
 ### 3. Vagrant
 
 ```shell
-ENV1=valor1 ENV2=valor2 ./run.sh -v [playbook] [distro]
+ENV1=valor1 ENV2=valor2 ./run.sh [distro] [playbook] -v
 ```
 
 *Dica: Abra o playbook para ver quais variaveis de ambiente são necessárias para cada um.*
@@ -39,7 +39,7 @@ ENV1=valor1 ENV2=valor2 ./run.sh -v [playbook] [distro]
 Exemplo para RockyLinux usando o Vagrant: 
 
 ```shell
-PASSWD="sua_senha_root" HOSTNAME="rocky" USER="lucas" ./run.sh -v setup rocky
+PASSWD="sua_senha_root" HOSTNAME="rocky" USER="lucas" ./run.sh rocky setup -v
 ```
 
 ## Créditos

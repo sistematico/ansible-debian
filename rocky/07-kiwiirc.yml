@@ -25,13 +25,13 @@
 
     - name: "Configure /etc/kiwiirc/config.conf file"
       template:
-        src: "kiwiirc/config.conf.j2"
-        dest: "/etc/kiwiirc/config.conf"
+        src: ../templates/kiwiirc/config.conf.j2
+        dest: /etc/kiwiirc/config.conf
 
     - name: "Configure /etc/kiwiirc/client.json file"
       template:
-        src: "kiwiirc/client.json.j2"
-        dest: "/etc/kiwiirc/client.json"
+        src: ../templates/kiwiirc/client.json.j2
+        dest: /etc/kiwiirc/client.json
 
     - name: "Ensure that /etc/nginx/sites.d directory exists"
       file:
@@ -41,8 +41,8 @@
 
     - name: "Configure /etc/nginx/sites.d/80-{{ webchat }}.conf file"
       template:
-        src: kiwiirc/kiwiirc-nginx.conf.j2
-        dest: "/etc/nginx/sites-available/80-{{ webchat }}.conf"
+        src: ../templates/kiwiirc/nginx.conf.j2
+        dest: "/etc/nginx/sites.d/80-{{ webchat }}.conf"
         force: yes
 
     - name: Create custom theme directory
@@ -55,7 +55,7 @@
 
     - name: Configure custom theme
       template:
-        src: kiwiirc/theme.css.j2
+        src: ../templates/kiwiirc/theme.css.j2
         dest: /usr/share/kiwiirc/static/themes/sdm/theme.css
         owner: kiwiirc
         group: kiwiirc
