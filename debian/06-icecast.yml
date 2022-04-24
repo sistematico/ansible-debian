@@ -3,8 +3,8 @@
   become: true
 
   vars:
-    domain_prefix:        "radio"
     domain:               "somdomato.com"
+    radio_domain:         "radio.{{ domain }}"
     radio_name:           "Radio Som do Mato"
     radio_description:    "A mais sertaneja!"
     radio_url:            "https://somdomato.com"
@@ -73,7 +73,7 @@
 
     - name: Copy config file for icecast2 systemd service
       template:
-        src: icecast/icecast2.service.j2
+        src: ../templates/icecast/debian/icecast2.service.j2
         dest: /etc/systemd/system/icecast2.service
 
     - name: Disable icecast2 stock systemd service unit
@@ -85,7 +85,7 @@
 
     - name: Copy icecast2 config file
       template:
-        src: icecast/icecast.xml.j2
+        src: ../templates/icecast/debian/icecast.xml.j2
         dest: /etc/icecast2/icecast.xml
 
     - name: Change file ownership, group and permissions
@@ -135,7 +135,7 @@
 
     - name: Setup liquidsoap systemd service
       template:
-        src: liquidsoap/liquidsoap.service.j2
+        src: ../templates/debian/liquidsoap.service.j2
         dest: /etc/systemd/system/liquidsoap.service
         force: yes
 
@@ -148,36 +148,34 @@
         mode: '0644'
         force: yes
       with_items:
-        - { orig: "liquidsoap/config.liq.j2",        dest: "/etc/liquidsoap/config.liq" }
-        - { orig: "liquidsoap/radio.liq.j2",         dest: "/etc/liquidsoap/radio.liq" }
-        - { orig: "liquidsoap/requests.liq.j2",      dest: "/etc/liquidsoap/requests.liq" }
-        - { orig: "liquidsoap/output.ffmpeg.liq.j2", dest: "/etc/liquidsoap/output.ffmpeg.liq" }
-        - { orig: "liquidsoap/output.mp3.liq.j2",    dest: "/etc/liquidsoap/output.mp3.liq" }
-        - { orig: "liquidsoap/output.vorbis.liq.j2", dest: "/etc/liquidsoap/output.vorbis.liq" }
+        - { orig: "../templates/icecast/liquidsoap/config.liq.j2",        dest: "/etc/liquidsoap/config.liq" }
+        - { orig: "../templates/icecast/liquidsoap/radio.liq.j2",         dest: "/etc/liquidsoap/radio.liq" }
+        - { orig: "../templates/icecast/liquidsoap/requests.liq.j2",      dest: "/etc/liquidsoap/requests.liq" }
+        - { orig: "../templates/icecast/liquidsoap/output.mp3.liq.j2",    dest: "/etc/liquidsoap/output.mp3.liq" }
 
     - name: Setup liquidsoap sudoers file
       template:
-        src: liquidsoap/liquidsoap.sudoers.conf.j2
+        src: ../templates/icecast/liquidsoap/liquidsoap.sudoers.conf.j2
         dest: /etc/sudoers.d/liquidsoap.conf
         force: yes
 
-    - name: "Create /etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }} file"
+    - name: "Create /etc/nginx/sites-available/80-{{ radio_domain }} file"
       template:
-        src: icecast/nginx.conf.j2
-        dest: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
+        src: ../templates/icecast/nginx.conf.j2
+        dest: "/etc/nginx/sites-available/80-{{ radio_domain }}"
         force: yes
 
-    - name: "Enable /etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
+    - name: "Enable /etc/nginx/sites-enabled/90-{{ radio_domain }}"
       file:
-        src: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
-        dest: "/etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
+        src: "/etc/nginx/sites-available/90-{{ radio_domain }}"
+        dest: "/etc/nginx/sites-enabled/90-{{ radio_domain }}"
         state: link
         force: yes
 
     - name: "Disable nginx default"
       file:
-        src: "/etc/nginx/sites-available/90-{{ domain_prefix }}.{{ domain }}"
-        dest: "/etc/nginx/sites-enabled/90-{{ domain_prefix }}.{{ domain }}"
+        src: "/etc/nginx/sites-available/90-{{ radio_domain }}"
+        dest: "/etc/nginx/sites-enabled/90-{{ radio_domain }}"
 
     - name: "Disable nginx default"
       ansible.builtin.file:

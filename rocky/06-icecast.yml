@@ -3,9 +3,8 @@
   become: true
 
   vars:
-    domain_prefix:        "radio"
     domain:               "somdomato.com"
-    
+    radio_domain:         "radio.{{ domain }}"
     radio_name:           "Radio Som do Mato"
     radio_description:    "A mais sertaneja!"
     radio_url:            "https://somdomato.com"
@@ -152,7 +151,7 @@
 
     - name: Setup liquidsoap systemd service
       template:
-        src: ../templates/icecast/centos/liquidsoap/liquidsoap.service.j2
+        src: ../templates/icecast/centos/liquidsoap.service.j2
         dest: /etc/systemd/system/liquidsoap.service
         force: yes
 
@@ -165,24 +164,22 @@
         mode: '0644'
         force: yes
       with_items:
-        - { orig: "../templates/icecast/centos/liquidsoap/config.liq.j2",        dest: "/etc/liquidsoap/config.liq" }
-        - { orig: "../templates/icecast/centos/liquidsoap/radio.liq.j2",         dest: "/etc/liquidsoap/radio.liq" }
-        - { orig: "../templates/icecast/centos/liquidsoap/requests.liq.j2",      dest: "/etc/liquidsoap/requests.liq" }
-        - { orig: "../templates/icecast/centos/liquidsoap/output.ffmpeg.liq.j2", dest: "/etc/liquidsoap/output.ffmpeg.liq" }
-        - { orig: "../templates/icecast/centos/liquidsoap/output.mp3.liq.j2",    dest: "/etc/liquidsoap/output.mp3.liq" }
-        - { orig: "../templates/icecast/centos/liquidsoap/output.vorbis.liq.j2", dest: "/etc/liquidsoap/output.vorbis.liq" }
+        - { orig: "../templates/icecast/liquidsoap/config.liq.j2",        dest: "/etc/liquidsoap/config.liq" }
+        - { orig: "../templates/icecast/liquidsoap/radio.liq.j2",         dest: "/etc/liquidsoap/radio.liq" }
+        - { orig: "../templates/icecast/liquidsoap/requests.liq.j2",      dest: "/etc/liquidsoap/requests.liq" }
+        - { orig: "../templates/icecast/liquidsoap/output.mp3.liq.j2",    dest: "/etc/liquidsoap/output.mp3.liq" }
 
     - name: Setup liquidsoap sudoers file
       template:
-        src: ../templates/icecast/liquidsoap.sudoers.conf.j2
+        src: ../templates/icecast/liquidsoap/liquidsoap.sudoers.conf.j2
         dest: /etc/sudoers.d/liquidsoap
         mode: '0440'
         force: yes
 
-    - name: "Create /etc/nginx/sites.d/90-{{ domain_prefix }}.{{ domain }}.conf file"
+    - name: "Create /etc/nginx/sites.d/80-{{ radio_domain }}.conf file"
       template:
         src: ../templates/icecast/nginx.conf.j2
-        dest: "/etc/nginx/sites.d/80-{{ domain_prefix }}.{{ domain }}.conf"
+        dest: "/etc/nginx/sites.d/80-{{ radio_domain }}.conf"
         force: yes
 
     - name: "Create /opt/liquidsoap/scripts/download.sh"

@@ -1,10 +1,10 @@
 #!/usr/bin/liquidsoap
 
 %include "config.liq"
-#%include "requests.liq"
+%include "requests.liq"
 
 live = input.harbor("aovivo", port = 8080, password = "{{ radio_password }}")
 lista = playlist("/opt/liquidsoap/music")
-radio = fallback(track_sensitive=false, [live, lista])
+radio = fallback(track_sensitive=false, [live, lista, laravel])
 
-%include "output.ffmpeg.liq"
+%include "output.mp3.liq"
