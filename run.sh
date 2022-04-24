@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+[ "$1" == "-h" ] && echo "Uso: $(basename $0) [distro] [playbook] [host]" && exit
 [ "$#" -lt 2 ] && echo "Número errado de argumentos." && exit
 [ ! -f $1/*-$2.yml ] && echo "O playbook não existe." && exit
 

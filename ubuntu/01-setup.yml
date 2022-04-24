@@ -5,7 +5,7 @@
 
   vars:
     sudo_user:   "{{ lookup('env','USER') | default('') }}"
-    hostname:    "{{ lookup('env','HOSTNAME') | default('nix') }}"
+    hostname:    "{{ lookup('env','HOSTNAME') | default('persephone') }}"
     timezone:    "{{ lookup('env','TIMEZONE') | default('America/Sao_Paulo') }}"
     packages:
       - sudo
@@ -146,7 +146,7 @@
         mode: '0755'
 
     - name: Disable Ubuntu Snap
-      script: ./scripts/snap.sh
+      script: ../scripts/snap.sh
       args:
         executable: bash
       when: ansible_distribution == 'Ubuntu'
