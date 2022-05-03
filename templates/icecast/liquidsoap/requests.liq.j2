@@ -1,5 +1,5 @@
 def pedidos() = 
-    result = list.hd(get_process_lines(default="", "sudo -u nginx /usr/bin/php /var/www/{{ domain }}/artisan song:dump"))
+    result = list.hd(default="", get_process_lines("sudo -u nginx /usr/bin/php /var/www/{{ domain }}/artisan song:dump"))
     request.create(result)
 end
 laravel = request.dynamic(pedidos)
