@@ -4,9 +4,9 @@
   become: true
 
   vars:
-    root_passwd: "{{ lookup('env','PASSWD') | default('') }}"
-    sudo_user:   "{{ lookup('env','USER') | default('') }}"
-    hostname:    "{{ lookup('env','HOSTNAME') | default('nix') }}"
+    root_passwd: "{{ lookup('env','PASSWD') }}"
+    sudo_user:   "{{ lookup('env','USER') }}"
+    hostname:    "{{ lookup('env','HOSTNAME') }}"
     timezone:    "{{ lookup('env','TIMEZONE') | default('America/Sao_Paulo') }}"
     packages:
       - bash-completion
@@ -19,8 +19,10 @@
 
   tasks:
     - fail:
-        msg: "Este playbook roda exclusivamente em sistemas RockyLinux!"
-      when: ansible_distribution != 'Rocky'
+        msg: "Este playbook roda exclusivamente em sistemas RockyLinux/CentOS!"
+      when:
+        - ansible_distribution != 'Rocky'
+        - ansible_distribution != 'CentOS'
 
     - name: Change password for root user
       user:
@@ -31,13 +33,16 @@
         - root_passwd is defined
         - root_passwd != ""
 
-    - name: Set a hostname
+    - name: "Set hostname to {{ hostname }}"
       hostname:
         name: "{{ hostname }}"
         use: systemd
       when: 
         - hostname is defined
         - hostname != ""
+
+    - name: "Set pretty hostname to {{ hostname }}"
+      shell: "hostnamectl set-hostname {{ hostname }} --pretty"
 
     - name: Upgrade all packages
       dnf:
@@ -52,9 +57,17 @@
         - packages is defined
         - packages != ""
 
+    # - name: "Set timezone to {{ timezone }}"
+    #   timezone:
+    #     name: "{{ timezone }}"
+    #   when: 
+    #     - timezone is defined
+    #     - timezone != ""
+
     - name: "Set timezone to {{ timezone }}"
       timezone:
         name: "{{ timezone }}"
+        hwclock: yes
       when: 
         - timezone is defined
         - timezone != ""
@@ -64,6 +77,14 @@
         name: chronyd
         state: started
         enabled: yes
+      when: 
+        - timezone is defined
+        - timezone != ""
+
+    - name: Restart crond
+      service:
+        name: crond
+        state: restarted
       when: 
         - timezone is defined
         - timezone != ""

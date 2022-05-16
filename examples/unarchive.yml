@@ -1,0 +1,14 @@
+---
+- hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Unarchive a file that needs to be downloaded (added in 2.0)
+      ansible.builtin.unarchive:
+        src: https://example.com/example.zip
+        dest: /usr/local/bin
+        remote_src: yes
+        owner: user
+        group: group
+        mode: '0644'

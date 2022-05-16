@@ -3,7 +3,7 @@
   become: true
 
   vars:
-    domain:    "{{ lookup('env','SITE') }}"
+    domain:    "{{ lookup('env','DOMAIN') }}"
     cf_email:  "{{ lookup('env','CF_EMAIL') }}"
     cf_token:  "{{ lookup('env','CF_TOKEN') }}"
     packages:
@@ -11,6 +11,13 @@
       - python3-certbot-dns-cloudflare
   
   tasks:
+    - fail:
+        msg: "Use DOMAIN or SITE env variables with your site"
+      when: 
+        - (domain is not defined or domain == "")
+        - (cf_email is not defined or cf_email == "")
+        - (cf_token is not defined or cf_token == "")
+
     - name: Install epel-release
       dnf:
         name: epel-release
@@ -26,7 +33,8 @@
       template:
         src: ../templates/cloudflare/cloudflare.ini.j2
         dest: /etc/cloudflare.ini
-        force: no
+        mode: '0600'
+        force: yes
 
     - name: Check if the cert exists
       stat:

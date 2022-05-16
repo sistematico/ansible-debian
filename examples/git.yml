@@ -1,0 +1,44 @@
+---
+- hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Display id_rsa.pub/home/nginx/.ssh
+      command: cat id_rsa.pub chdir=/home/nginx/.ssh
+      register: command_output
+
+    - name: Mostrando a chave PGP RSA pública do usuário nginx
+      debug:
+        msg: "{{command_output.stdout}}"
+
+    - name: Aguardando inserção de chave pública no Github
+      pause:
+        prompt: Copie a chave acima em https://github.com/settings/ssh/new quando tiver terminado tecle [ENTER]. Pressione Ctrl+c depois "a" para cancelar
+
+    - name: Clone a private repository into project folder.
+      git:
+        repo: "{{ repo }}"
+        dest: "/var/www/{{ site }}"
+        version: "{{ branch }}"
+        accept_hostkey: yes
+        force: yes
+        update: yes
+      become: yes
+      become_user: nginx
+
+    - name: pnpm install
+      ansible.builtin.command: pnpm install
+      args:
+        chdir: "/var/www/{{ site }}"
+      become: yes
+      become_user: nginx
+      when: mode == 'vite'
+
+    - name: pnpm build
+      ansible.builtin.command: pnpm build
+      args:
+        chdir: "/var/www/{{ site }}"
+      become: yes
+      become_user: nginx
+      when: mode == 'vite'

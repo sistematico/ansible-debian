@@ -3,7 +3,7 @@
   become: true
 
   vars:
-    domain:    "{{ lookup('env','SITE') }}"
+    domain:    "{{ lookup('env','DOMAIN') }}"
     cf_email:  "{{ lookup('env','CF_EMAIL') }}"
     cf_token:  "{{ lookup('env','CF_TOKEN') }}"
     packages:

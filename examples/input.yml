@@ -1,0 +1,12 @@
+---
+- hosts: localhost
+  connection: local 
+  become: true
+
+  tasks:
+    - name: "Teste de input multilinha"
+      ansible.builtin.shell: >
+        read -d '' versionNotes -p "Digite"
+        echo -e "$versionNotes" > /tmp/yt.txt
+      args:
+        executable: bash
