@@ -36,9 +36,11 @@
       with_items:
         - 22/tcp
         - 80/tcp
-        - 6667/tcp
-        - 443/tcp
         - 123/udp
+        - 443/tcp
+        - 6667/tcp
+        - 8000/tcp
+        - 9090/tcp # Cockpit
 
     # fail2ban
     - name: Override some basic fail2ban configurations

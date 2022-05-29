@@ -3,36 +3,30 @@
   become: true
 
   vars:
-    domain:    "{{ lookup('env','DOMAIN') }}"
+    domain:    "{{ lookup('env','SITE') }}"
     cf_email:  "{{ lookup('env','CF_EMAIL') }}"
     cf_token:  "{{ lookup('env','CF_TOKEN') }}"
-    packages:
-      - certbot
-      - python3-certbot-dns-cloudflare
   
   tasks:
     - fail:
-        msg: "Use DOMAIN or SITE env variables with your site"
+        msg: "Use SITE env variable with your site domain"
       when: 
         - (domain is not defined or domain == "")
         - (cf_email is not defined or cf_email == "")
         - (cf_token is not defined or cf_token == "")
 
-    - name: Install epel-release
-      dnf:
-        name: epel-release
-        state: latest
-
     - name: Install required system packages
       dnf:
-        name: "{{ item }}"
+        name:
+          - epel-release
+          - certbot
+          - python3-certbot-dns-cloudflare
         state: latest
-      with_items: "{{ packages }}"
 
     - name: "Create /etc/cloudflare.ini"
       template:
-        src: ../templates/cloudflare/cloudflare.ini.j2
-        dest: /etc/cloudflare.ini
+        src: "../templates/cloudflare/cloudflare.ini.j2"
+        dest: "/etc/cloudflare.ini"
         mode: '0600'
         force: yes
 
@@ -42,6 +36,6 @@
       register: cert_file_result
 
     - name: "Run certbot command for {{ domain }}"
-      command: certbot certonly --email "{{ cf_email }}" --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}" -d "*.{{ domain }}"
+      command: certbot certonly --agree-tos --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare.ini -d "{{ domain }}" -d "*.{{ domain }}"
       when: 
         - not cert_file_result.stat.exists

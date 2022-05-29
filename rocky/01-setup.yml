@@ -33,6 +33,17 @@
         - root_passwd is defined
         - root_passwd != ""
 
+    - name: Enable password SSH login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication yes'
+
+    - name: Change authorized_keys file
+      script: ../scripts/root.sh
+      args:
+        executable: /bin/bash
+
     - name: "Set hostname to {{ hostname }}"
       hostname:
         name: "{{ hostname }}"
@@ -43,6 +54,9 @@
 
     - name: "Set pretty hostname to {{ hostname }}"
       shell: "hostnamectl set-hostname {{ hostname }} --pretty"
+      when: 
+        - hostname is defined
+        - hostname != ""
 
     - name: Upgrade all packages
       dnf:
@@ -56,13 +70,6 @@
       when: 
         - packages is defined
         - packages != ""
-
-    # - name: "Set timezone to {{ timezone }}"
-    #   timezone:
-    #     name: "{{ timezone }}"
-    #   when: 
-    #     - timezone is defined
-    #     - timezone != ""
 
     - name: "Set timezone to {{ timezone }}"
       timezone:
@@ -120,6 +127,11 @@
         - sudo_user is defined
         - sudo_user != ""
         - lookup('env','VAGRANT') is not defined
+
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
 
     - name: Download ix
       get_url:

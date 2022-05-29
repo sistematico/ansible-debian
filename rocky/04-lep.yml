@@ -3,8 +3,7 @@
   become: true
 
   vars:
-    domain:       "{{ lookup('env', 'DOMAIN') | default('', true) }}"
-    site:         "{{ lookup('env', 'SITE') | default('', true) }}"
+    domain:       "{{ lookup('env', 'SITE') }}"
     ip_addr:      "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
     nginx_user:   "nginx"
     nginx_passwd: "{{ lookup('env','PASSWD') | default('', true) }}" 
@@ -23,10 +22,9 @@
 
   tasks:
     - fail:
-        msg: "Use DOMAIN or SITE env variables with your site"
+        msg: "Use SITE env variable with your site domain"
       when: 
         - (domain is not defined or domain == "")
-        - (site is not defined or site == "")
 
     - name: Check if the cert exists
       stat:
@@ -133,11 +131,11 @@
     - name: "Create {{ domain }} main site config file"
       template:
         src: ../templates/lep/centos/nginx/sites.d/domain.conf.j2
-        dest: "/etc/nginx/sites.d/01-{{ domain }}.conf"
+        dest: "/etc/nginx/sites.d/{{ domain }}.conf"
         owner: nginx
         group: nginx
         mode: '0644'
-        force: no
+        force: yes
       when: 
         - domain is defined 
         - domain != ""
@@ -164,53 +162,6 @@
       when: 
         - domain is defined 
         - domain != ""
-
-    # Sites
-    - name: "Find is file /etc/nginx/sites.d/{{ site }} already exist"
-      find:
-        paths: /etc/nginx/sites.d
-        patterns: "*{{ site }}*"
-      register: site_exist
-
-    - name: Count files in /etc/nginx/sites.d
-      find: 
-        paths: /etc/nginx/sites.d
-      register: sites_count
-
-    - name: "Configure /etc/nginx/sites.d/ config files"
-      template:
-        src: ../templates/lep/centos/nginx/sites.d/sites.conf.j2
-        dest: "/etc/nginx/sites.d/0{{ sites_count.examined + 1 }}-{{ site }}.conf"
-        owner: nginx
-        group: nginx
-        mode: '0644'
-        force: no
-      when: 
-        - site is defined
-        - site != ""
-
-    - name: "Create /var/www/{{ site }} directory if not exist"
-      file:
-        path: "/var/www/{{ site }}"
-        state: directory
-        owner: nginx
-        group: nginx
-        mode: '0755'
-      when: 
-        - site is defined 
-        - site != ""
-
-    - name: "Create a index.html for {{ site }}"
-      template:
-        src: "../templates/lep/site.html.j2"
-        dest: "/var/www/{{ site }}/index.html"
-        owner: nginx
-        group: nginx
-        mode: '0644'
-        force: no
-      when: 
-        - site is defined 
-        - site != ""
 
     # Composer
     - name: Check if Composer is installed
