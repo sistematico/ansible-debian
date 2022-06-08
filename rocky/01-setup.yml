@@ -24,6 +24,12 @@
         - ansible_distribution != 'Rocky'
         - ansible_distribution != 'CentOS'
 
+    - name: Add another /usr/local/bin dir to system-wide $PATH.
+      copy:
+        dest: /etc/profile.d/custom-path.sh
+        content: 'PATH=$PATH:/usr/local/bin'
+      when: ansible_distribution == 'CentOS'
+
     - name: Change password for root user
       user:
         name: root
