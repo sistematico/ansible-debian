@@ -16,16 +16,22 @@ ENV1=valor1 ENV2=valor2 ./run.sh [distro] [playbook] [host]
 
 *Dica: Abra o playbook para ver quais variaveis de ambiente são necessárias para cada um.*
 
-Exemplo para Debian usando o host previmente configurado em /etc/hosts (no caso *nix*): 
+Exemplo de Setup para Debian usando o host previmente configurado em /etc/hosts (no caso *nix*): 
 
 ```shell
-PASSWD="sua_senha_root" HOSTNAME="nix" USER="lucas" ./run.sh debian setup maquina.site.com
+PASSWD='sua_senha_root' HOSTNAME='nix' USER='lucas' ./run.sh debian setup nix
 ```
 
-Exemplo para RockyLinux usando o IP 192.168.0.1: 
+Exemplo de Setup para RockyLinux usando o IP 192.168.0.1: 
 
 ```shell
-PASSWD="sua_senha_root" HOSTNAME="rocky" USER="lucas" ./run.sh rocky setup 192.168.0.1
+PASSWD='sua_senha_root' HOSTNAME='rocky' USER='lucas' ./run.sh rocky setup 192.168.0.1
+```
+
+Exemplo de instalação de um certificado CloudFlare para uma máquina usando o RockyLinux com o IP 1.1.1.1: 
+
+```shell
+SITE='dominio.com' CF_EMAIL='seu_email@gmail.com' CF_TOKEN='seu_token_cloudflare' ./run.sh rocky setup 1.1.1.1
 ```
 
 ### 3. Vagrant
